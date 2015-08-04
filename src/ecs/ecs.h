@@ -435,45 +435,20 @@ namespace details{
 
         protected:
             static Family& family_counter(){ static Family counter = 0; return counter; };
+        private:
+            BaseComponent() = delete;
         }; //BaseComponent
 
 
         template <typename C>
         class Component : public BaseComponent {
         public:
-            Component(ComponentManager<C>& manager, index_t index) : manager_(&manager), index_(index) {};
-
-            Component(const Component& other) : manager_(other.manager_), index_(other.index_) {}
-
-            inline operator C& () {
-                return get();
-            }
-
-            inline C& get() const{
-                return *manager_->get_ptr(index_);
-            }
-
             static Family family() {
                 static Family family = family_counter()++;
                 return family;
             }
-
-            inline Component<C>& operator = (const Component<C>& other){
-                manager_ = other.manager_;
-                index_ = other.index_;
-                return *this;
-            }
-
-            inline Component<C>& operator = (const C& rhs){
-                get() = rhs;
-                return *this;
-            }
-
         private:
-            ComponentManager<C> *manager_;
-            index_t index_;
-
-            friend class ComponentManager<C>;
+            Component() = delete;
         }; //Component
 
         template<typename C>
@@ -485,7 +460,7 @@ namespace details{
 
             /// Allocate and create at specific index
             template<typename ...Args>
-            Component<C> create(index_t index, Args && ... args){
+            C& create(index_t index, Args && ... args){
                 pool_.ensure_min_size(index + 1);
                 new(get_ptr(index)) C(std::forward<Args>(args) ...);
                 return get(index);
@@ -502,12 +477,12 @@ namespace details{
                 manager_.mask(index).reset(Component<C>::family());
             }
 
-            inline Component<C> operator[] (index_t index){
+            inline C& operator[] (index_t index){
                 return get(index);
             }
 
-            inline Component<C> get(index_t index){
-                return Component<C>(*this, index);
+            inline C& get(index_t index){
+                return *get_ptr(index);
             }
         private:
             inline C* get_ptr (index_t index){
@@ -832,8 +807,8 @@ namespace details{
             template<typename C>
             inline C& get(){
                 return details::call_if<is_component<C>::value>(
-                        [&](){ return manager_->get_component_fast<C>(entity_); },
-                        [&](){ return manager_->get_component<C>(entity_); });
+                        [&]() -> C& { return manager_->get_component_fast<C>(entity_); },
+                        [&]() -> C& { return manager_->get_component<C>(entity_); });
             }
 
             /// Set the requested component, if old component exist,
@@ -842,8 +817,8 @@ namespace details{
             template<typename C, typename ... Args>
             inline C& set(Args && ... args){
                 return details::call_if<is_component<C>::value>(
-                        [&](){ return manager_->set_component_fast<C>(entity_, std::forward<Args>(args)...); },
-                        [&](){ return manager_->set_component<C>(entity_, std::forward<Args>(args)...); });
+                        [&]() -> C& { return manager_->set_component_fast<C>(entity_, std::forward<Args>(args)...); } ,
+                        [&]() -> C& { return manager_->set_component<C>(entity_, std::forward<Args>(args)...); });
             }
 
             /// Add the requested component, error if component of the same type exist already
@@ -1100,25 +1075,25 @@ namespace details{
         }
 
         template<typename C>
-        inline Component<C> get_component(Entity& entity){
+        inline C& get_component(Entity& entity){
             if(!has_component<C>(entity)) throw exceptions::MissingComponentException();
             return get_component_fast<C>(entity);
         }
 
         /// Get component fast, no error checks. Use if it is already known that Entity has Component
         template<typename C>
-        inline Component<C> get_component_fast(Entity& entity){
+        inline C& get_component_fast(Entity& entity){
             return get_component_fast<C>(entity.id_.index_);
         }
 
         /// Get component fast, no error checks. Use if it is already known that Entity has Component
         template<typename C>
-        inline Component<C> get_component_fast(index_t index){
+        inline C& get_component_fast(index_t index){
             return get_component_manager_fast<C>().get(index);
         }
 
         template<typename C, typename ...Args>
-        Component<C> create_component(Entity &entity, Args &&... args){
+        inline C& create_component(Entity &entity, Args &&... args){
             if(has_component<C>(entity)) throw exceptions::RedundantComponentException();
             return set_component_fast<C>(entity, std::forward<Args>(args)...);
         }
@@ -1149,14 +1124,14 @@ namespace details{
         }
 
         template<typename C, typename ...Args>
-        inline Component<C> set_component(Entity& entity, Args && ... args){
+        inline C& set_component(Entity& entity, Args && ... args){
             if(entity.has<C>()) return get_component_fast<C>(entity) = C(args...);
             else return set_component_fast<C>(entity, std::forward<Args>(args)...);
         }
 
         template<typename C, typename ...Args>
-        inline Component<C> set_component_fast(Entity& entity, Args && ... args){
-            Component<C> component = get_component_manager<C>().create(entity.id_.index_, std::forward<Args>(args) ...);
+        inline C& set_component_fast(Entity& entity, Args && ... args){
+            C& component = get_component_manager<C>().create(entity.id_.index_, std::forward<Args>(args) ...);
             entity.mask() |= componentMask<C>();
             return component;
         }
