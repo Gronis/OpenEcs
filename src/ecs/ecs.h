@@ -889,9 +889,7 @@ namespace details{
             }
 
         protected:
-            EntityAlias(){
-                std::cout << "he";
-            }
+            EntityAlias(){}
 
         private:
             static ComponentMask mask(){
@@ -941,7 +939,6 @@ namespace details{
             new_entities.reserve(entities_left);
             entity_versions_.resize(entity_count + entities_left);
             component_masks_.resize(entity_count + entities_left, ComponentMask(0));
-            size_t i = 0;
             //first, allocate where there are holes
             while (entities_left && !free_list_.empty()) {
                 index = free_list_.back();

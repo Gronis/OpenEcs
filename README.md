@@ -11,6 +11,9 @@ I authored OpenEcs after using other ECS libraries. The main reason for this was
 wasn't supposed to become its own library. As I progressed, I thought it might be worth releasing it to the public as it 
 slightly became a library with a different approach than the others.
 
+##Installation
+Just [Download](https://github.com/Gronis/OpenEcs/raw/master/src/ecs/ecs.h) the header and include it into your project. Make sure to enable c++11 when compiling. (-std=c++11 or -std=c++0x)
+
 ##Standard Feature's:
 The first thing you need is somewhere to store the entities. This is called the EntityManager and is created like this:
 ```cpp
@@ -52,7 +55,7 @@ entity.add<Health>(10);
 entity.set<Health>(20);
 
 //Add only works when it doesn't already exists.
-//entity.add<Health>(10); <- Error, component already added
+entity.add<Health>(10);// <- Exception, component already added
 ```
 
 ### Accessing Components from entities
@@ -60,14 +63,14 @@ Accessing components is just as easy
 
 ```cpp
 //Add health component with a value of 10 to the entity
-entity.add<Health>(10);
+entity.set<Health>(10);
 
 //Access the Health Component
 Health& health = entity.get<Health>();
 health.value = 3;
 
-//NOTE, you should use reference, not value
-//otherwise, the components will be copies and
+//NOTE, you should use reference, not value.
+//Otherwise, the components will be copied and
 //any change made to it will not be registered
 //on the acctual component
 
@@ -114,7 +117,7 @@ entities.with([](Health& health, Mana& mana){
 });
 
 //NOTE, use reference, not values as parameters.
-//otherwise, the components will be copies and
+//Otherwise, the components will be copied and
 //any change made to it will not be registered
 //on the acctual component
 
@@ -161,6 +164,14 @@ systems.update(deltaTime);
 
 The systems are updated in the same order as they are added.
 
+###Error handling
+Any runtime errors should be handled by exceptions inside the ecs::exception namespace. The current exceptions are
+
+* RedundantComponentException - When adding component (using add) when component exists already
+* RedundantSystemException - When adding system when system exists already
+* MissingComponentException - When accessing or removing missing component
+* MissingSystemException - When accessing or removing missing system
+* InvalidEntityException - When using an invalid entity
 
 ##Extra feature's
 Aside from the normal usage of bitmasks for Component recognition and storing components in a vector for cache 
@@ -238,21 +249,30 @@ like this:
 
 ```cpp
 class Actor : public EntityAlias<Health, Name>{
-public:
-	Actor(int health, std::string name){
-		set<Health>(health);
-		set<Name>(name);
-		//Make sure you set all required components here.
-		//Anything else is forbidden
+									^     ^
+      								 \_____\
+public:									    \
+	Actor(int health, std::string name){     \
+		set<Health>(health);				  \
+		set<Name>(name);					   \
+		//Make sure you set all required components.
+		//Missing any required component will result
+		//in a runtime error.
 	}
 };
-
-EntityManager entities;
-//Create an actor with 10 health and named Evil Dude
-entities.create<Actor>(10, "Evil Dude");
-
 ```
 
+Once we have the Entity AliasConstructor, we can create
+an entity using the "create" function.
+
+```
+EntityManager entities;
+
+//Create an actor with 10 health and named Evil Dude
+Actor actor = entities.create<Actor>(10, "Evil Dude");
+
+```
+This results in a useful factory method for any EntityAlias. Another good thing is that what an Entity is, is defined by its components, and enables entities to be several things at the same time, without using hierarchy (Which is the idea behind Entity Component Systems).
 
 ###Performance
 
@@ -276,7 +296,7 @@ To improve performance iterate by using auto when iterating with a for loop
 ```cpp  
 for(auto entity : entities.with<Health, Name>()){
 //   ^
-//   | 
+//   \ 
 //    ` The type here will not become Entity, it will become EntityAlias<Health, Name>.
 //      It will only use the normal Entity class if you tell it to.
 }
@@ -291,7 +311,7 @@ runtime check when we iterate through the list. Why do it again?
 ```cpp  
 for(auto entity : entities.with<Health, Name>()){
 	entity.get<Health>(); // <- No runtime check. Fast
-	entity.get<Mana>(); // <- Runtime check required. Slow(er)
+	entity.get<Mana>(); // <- Runtime check required. Slow(er), May throw exception
 }
 
 ```
@@ -304,17 +324,115 @@ entities.with([](Health& health, Name& name){ });
 
 ```
 
-###Configurable memory Allocation 
+##A complete example
+This examples illustrates two spellcasters: Alice and Bob, and their fight to the death. Prints the winner and remaining health and mana.
 
-An EntityManager can define what components can be assigned to Entities and how different Components are stored.
+```cpp
+#include <iostream>
+#include "ecs/ecs.h"
 
-###Define different EntityManagers to fit you needs
+using namespace ecs;
 
-Each EntityManager can have different Components. Therefore the ability to use one EM for game entities, and one for 
-example, particles, in particle effects is possible. Also, the size of the bitmasks depends only on the components used
-for that EM witch reduces memory usage.
+struct Health{
+    Health(int value) : value(value){};
+    int value;
+};
 
-###Component Dependencies
+struct Mana{
+    Mana(int value) : value(value){};
+    int value;
+};
 
-Let's say Velocity depends on position. The ability to tell the entity manager that a specific Component depends on 
-another Component might be useful to ensure a valid gamestate. 
+struct Name{
+    Name(std::string value) : value(value){};
+    std::string value;
+};
+
+struct Spellcaster : public EntityAlias<Name, Health, Mana>{
+    Spellcaster() : Spellcaster("NoName", 0, 0){ };
+    Spellcaster(std::string name, int health, int mana){
+        set<Name>(name);
+        set<Health>(health);
+        set<Mana>(mana);
+    }
+    bool isOom(){
+        return get<Mana>().value == 0;
+    }
+
+    bool isAlive(){
+        return get<Health>().value > 0;
+    }
+    void castSpell(Spellcaster& target){
+        --get<Mana>().value;
+        --target.get<Health>().value;
+    }
+};
+
+class RemoveCorpsesSystem : public System<RemoveCorpsesSystem>{
+public:
+    virtual void update(float time){
+        for(auto entity : entities().with<Health>()){
+            if(entity.get<Health>().value <= 0){
+                entity.destroy();
+            }
+        }
+    }
+};
+
+class CastSpellSystem : public System<CastSpellSystem>{
+public:
+    virtual void update(float time){
+        entities().fetch_every([&] (Spellcaster& spellcaster1){
+            entities().fetch_every([&] (Spellcaster& spellcaster2){
+                if(spellcaster1 != spellcaster2){
+                    spellcaster1.castSpell(spellcaster2);
+                }
+            });
+        });
+    }
+};
+
+class GiveManaSystem : public System<GiveManaSystem>{
+public:
+    virtual void update(float time){
+        entities().fetch_every([] (Spellcaster& spellcaster){
+            if(spellcaster.isOom()) spellcaster.set<Mana>(1337);
+        });
+    }
+};
+
+class Game{
+public:
+    Game() : systems(entities) {}
+    void run(){
+        systems.create<CastSpellSystem>();
+        systems.create<GiveManaSystem>();
+        systems.create<RemoveCorpsesSystem>();
+        entities.create<Spellcaster>("Alice", 8, 12);
+        entities.create<Spellcaster>("Bob", 12, 8);
+        while(entities.count() > 1) systems.update(1);
+        entities.with([] (Name& name, Health& health, Mana& mana){
+            std::cout << name.value << " won!" << std::endl;
+            std::cout << "Health: " << health.value << std::endl;
+            std::cout << "Mana:   " << mana.value << std::endl;
+        });
+    }
+
+private:
+    EntityManager entities;
+    SystemManager systems;
+};
+
+int main(){
+    Game game;
+    game.run();
+}
+
+```
+
+Output:
+```
+Bob won!
+Health: 4
+Mana:   1337
+```
