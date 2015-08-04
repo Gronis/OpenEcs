@@ -7,7 +7,6 @@
 #include <functional>
 #include <assert.h>
 
-namespace oscg{
 namespace ecs{
 
     #define ASSERT_IS_ENTITY(T)                                                             \
@@ -354,28 +353,6 @@ namespace details{
         class Entity;
 
         ///---------------------------------------------------------------------
-        /// Component is a wrapper class around a component instance
-        ///---------------------------------------------------------------------
-        ///
-        /// Removing a component clears the component mask in Entity.
-        ///
-        /// Members of the actual component can be accessed with ->
-        /// Also, many standard operators are forwarded to the actual
-        /// component which enables operations like implicit type
-        /// conversations, Eg:
-        ///
-        ///      e1.get<SomeComponent>() >= 1
-        ///
-        /// This operation is delegated to the "SomeComponent" class
-        /// which might override operator >= if the above expression
-        /// should be valid.
-        ///
-        ///
-        ///---------------------------------------------------------------------
-        template<typename T>
-        class Component;
-
-        ///---------------------------------------------------------------------
         /// EntityAlias is a wrapper around an Entity
         ///---------------------------------------------------------------------
         ///
@@ -424,6 +401,13 @@ namespace details{
         /// Helper class
         ///---------------------------------------------------------------------
         class BaseComponent;
+        ///---------------------------------------------------------------------
+        /// Component is a wrapper class around a component instance
+        /// This class is mainly used to give different Components its
+        /// own mask index.
+        ///---------------------------------------------------------------------
+        template<typename T>
+        class Component;
 
         ///---------------------------------------------------------------------
         /// Helper class,  This is the main class for holding many Component of
@@ -452,6 +436,45 @@ namespace details{
         protected:
             static Family& family_counter(){ static Family counter = 0; return counter; };
         }; //BaseComponent
+
+
+        template <typename C>
+        class Component : public BaseComponent {
+        public:
+            Component(ComponentManager<C>& manager, index_t index) : manager_(&manager), index_(index) {};
+
+            Component(const Component& other) : manager_(other.manager_), index_(other.index_) {}
+
+            inline operator C& () {
+                return get();
+            }
+
+            inline C& get() const{
+                return *manager_->get_ptr(index_);
+            }
+
+            static Family family() {
+                static Family family = family_counter()++;
+                return family;
+            }
+
+            inline Component<C>& operator = (const Component<C>& other){
+                manager_ = other.manager_;
+                index_ = other.index_;
+                return *this;
+            }
+
+            inline Component<C>& operator = (const C& rhs){
+                get() = rhs;
+                return *this;
+            }
+
+        private:
+            ComponentManager<C> *manager_;
+            index_t index_;
+
+            friend class ComponentManager<C>;
+        }; //Component
 
         template<typename C>
         class ComponentManager : public BaseManager, details::NonCopyable{
@@ -563,7 +586,7 @@ namespace details{
 
             /// Returns the requested component, or error if it doesn't exist
             template<typename C>
-            inline Component<C> get(){
+            inline C& get(){
                 return manager_->get_component<C>(*this);
             }
 
@@ -571,13 +594,13 @@ namespace details{
             /// a new one is created. Otherwise, the assignment operator
             /// is used.
             template<typename C, typename ... Args>
-            inline Component<C> set(Args && ... args){
+            inline C& set(Args && ... args){
                 return manager_->set_component<C>(*this, std::forward<Args>(args) ...);
             }
 
             /// Add the requested component, error if component of the same type exist already
             template<typename C, typename ... Args>
-            inline Component<C> add(Args && ... args){
+            inline C& add(Args && ... args){
                 return manager_->create_component<C>(*this, std::forward<Args>(args) ...);
             }
 
@@ -628,8 +651,8 @@ namespace details{
             }
 
             template <typename ...Components>
-            std::tuple<Component<Components>...> unpack() {
-                return std::make_tuple<Component<Components>...>(get<Components>()...);
+            std::tuple<Components& ...> unpack() {
+                return std::forward_as_tuple(get<Components>()...);
             }
 
         private:
@@ -755,412 +778,6 @@ namespace details{
             friend class EntityManager;
         }; //View
 
-        template <typename C>
-        class Component : public BaseComponent {
-        public:
-            Component(ComponentManager<C>& manager, index_t index) : manager_(&manager), index_(index) {};
-
-            Component(const Component& other) : manager_(other.manager_), index_(other.index_) {}
-
-            inline C* operator-> (){
-                return manager_->get_ptr(index_);
-            }
-
-            inline C* operator-> () const{
-                return manager_->get_ptr(index_);
-            }
-
-            inline operator C& () {
-                return get();
-            }
-
-            inline C& get() {
-                return *(operator->());
-            }
-
-            inline C& get() const{
-                return *(operator->());
-            }
-
-            void remove(){
-                manager_->remove(index_);
-            }
-
-            static Family family() {
-                static Family family = family_counter()++;
-                return family;
-            }
-
-            /////////////////////////////////////////////////
-            ///
-            /// Operator =
-            ///
-            /////////////////////////////////////////////////
-
-            inline Component<C>& operator = (const Component<C>& other){
-                manager_ = other.manager_;
-                index_ = other.index_;
-                return *this;
-            }
-
-            template<typename T>
-            inline Component<C>& operator = (const Component<T>& other){
-                get() = other.get();
-                return *this;
-            }
-
-            inline Component<C>& operator = (const C& rhs){
-                get() = rhs;
-                return *this;
-            }
-
-            template<typename T>
-            inline Component<C>& operator = (const T& rhs){
-                get().operator T&() = rhs;
-                return *this;
-            }
-
-            /////////////////////////////////////////////////
-            ///
-            /// Implicit type conversation
-            ///
-            /////////////////////////////////////////////////
-
-            template<typename T>
-            inline operator T & () {
-                return get().operator T&();
-            }
-
-            /////////////////////////////////////////////////
-            ///
-            /// Operator ==
-            ///
-            /////////////////////////////////////////////////
-
-            template<typename T>
-            inline bool operator == (const Component<T>& rhs){
-                return get() == rhs.get();
-            }
-
-            inline bool operator == (const Component<C>& rhs){
-                return get() == rhs.get();
-            }
-
-            template<typename T>
-            inline bool operator == (const T& rhs){
-                return get().operator T&() == rhs;
-            }
-
-            /////////////////////////////////////////////////
-            ///
-            /// Operator !=
-            ///
-            /////////////////////////////////////////////////
-
-            template<typename T>
-            inline bool operator != (const Component<T>& rhs){
-                return get() != rhs.get();
-            }
-
-            inline bool operator != (const Component<C>& rhs){
-                return get() != rhs.get();
-            }
-
-            template<typename T>
-            inline bool operator != (const T& rhs){
-                return get().operator T&() != rhs;
-            }
-
-            /////////////////////////////////////////////////
-            ///
-            /// Operator <
-            ///
-            /////////////////////////////////////////////////
-
-            inline bool operator < (const Component<C>& rhs){
-                return get() < rhs.get();
-            }
-
-            template<typename T>
-            inline bool operator < (const Component<T>& rhs){
-                return get().operator T&() < rhs.get();
-            }
-
-            template<typename T>
-            inline bool operator < (const T& rhs){
-                return get().operator T&() < rhs;
-            }
-
-            /////////////////////////////////////////////////
-            ///
-            /// Operator >
-            ///
-            /////////////////////////////////////////////////
-
-            inline bool operator > (const Component<C>& rhs){
-                return get() > rhs.get();
-            }
-
-            template<typename T>
-            inline bool operator > (const Component<T>& rhs){
-                return get().operator T&() > rhs.get();
-            }
-
-            template<typename T>
-            inline bool operator > (const T& rhs){
-                return get().operator T&() > rhs;
-            }
-
-            /////////////////////////////////////////////////
-            ///
-            /// Operator <= and
-            ///
-            /////////////////////////////////////////////////
-
-            inline bool operator <= (const Component<C>& rhs){
-                return get() <= rhs.get();
-            }
-
-            template<typename T>
-            inline bool operator <= (const Component<T>& rhs){
-                return get().operator T&() <= rhs.get();
-            }
-
-            template<typename T>
-            inline bool operator <= (const T& rhs){
-                return get().operator T&() <= rhs;
-            }
-
-            /////////////////////////////////////////////////
-            ///
-            /// Operator >= and
-            ///
-            /////////////////////////////////////////////////
-
-            inline bool operator >= (const Component<C>& rhs){
-                return get() >= rhs.get();
-            }
-
-            template<typename T>
-            inline bool operator >= (const Component<T>& rhs){
-                return get().operator T&() >= rhs.get();
-            }
-
-            template<typename T>
-            inline bool operator >= (const T& rhs){
-                return get().operator T&() >= rhs;
-            }
-
-            /////////////////////////////////////////////////
-            ///
-            /// Operator +
-            ///
-            /////////////////////////////////////////////////
-
-            inline C operator + (const Component<C>& rhs) {
-                return get() + rhs.get();
-            }
-
-            template<typename T>
-            inline T operator + (const Component<T>& rhs){
-                return get().operator T&() + rhs.get();
-            }
-
-            template<typename T>
-            inline T operator + (const T& rhs) {
-                return get().operator T&() + rhs;
-            }
-
-            /////////////////////////////////////////////////
-            ///
-            /// Operator -
-            ///
-            /////////////////////////////////////////////////
-
-            inline C operator - (const Component<C>& rhs) {
-                return get() - rhs.get();
-            }
-
-            template<typename T>
-            inline T operator - (const Component<T>& rhs){
-                return get().operator T&() - rhs.get();
-            }
-
-            template<typename T>
-            inline T operator - (const T& rhs) {
-                return get().operator T&() - rhs;
-            }
-
-            /////////////////////////////////////////////////
-            ///
-            /// Operator *
-            ///
-            /////////////////////////////////////////////////
-
-            inline C operator * (const Component<C>& rhs) {
-                return get() * rhs.get();
-            }
-
-            template<typename T>
-            inline T operator * (const Component<T>& rhs){
-                return get().operator T&() * rhs.get();
-            }
-
-            template<typename T>
-            inline T operator * (const T& rhs) {
-                return get().operator T&() * rhs;
-            }
-
-            /////////////////////////////////////////////////
-            ///
-            /// Operator /
-            ///
-            /////////////////////////////////////////////////
-
-            inline C operator / (const Component<C>& rhs) {
-                return get() / rhs.get();
-            }
-
-            template<typename T>
-            inline T operator / (const Component<T>& rhs){
-                return get().operator T&() / rhs.get();
-            }
-
-            template<typename T>
-            inline T operator / (const T& rhs) {
-                return get().operator T&() / rhs;
-            }
-
-            /////////////////////////////////////////////////
-            ///
-            /// Operator +=
-            ///
-            /////////////////////////////////////////////////
-
-            inline Component<C>& operator += (const Component<C>& rhs) {
-                get() += rhs.get();
-                return *this;
-            }
-
-            template<typename T>
-            inline Component<C>& operator += (const Component<T>& rhs){
-                get() += rhs.get();
-                return *this;
-            }
-
-            template<typename T>
-            inline T& operator += (const T& rhs) {
-                return get().operator T&() += rhs;
-            }
-
-            /////////////////////////////////////////////////
-            ///
-            /// Operator -=
-            ///
-            /////////////////////////////////////////////////
-
-            inline Component<C>& operator -= (const Component<C>& rhs) {
-                get() -= rhs.get();
-                return *this;
-            }
-
-            template<typename T>
-            inline Component<C>& operator -= (const Component<T>& rhs){
-                get() -= rhs.get();
-                return *this;
-            }
-
-            template<typename T>
-            inline T& operator -= (const T& rhs) {
-                return get().operator T&() -= rhs;
-            }
-
-            /////////////////////////////////////////////////
-            ///
-            /// Operator *=
-            ///
-            /////////////////////////////////////////////////
-
-            inline Component<C>& operator *= (const Component<C>& rhs) {
-                get() *= rhs.get();
-                return *this;
-            }
-
-            template<typename T>
-            inline Component<C>& operator *= (const Component<T>& rhs){
-                get() *= rhs.get();
-                return *this;
-            }
-
-            template<typename T>
-            inline T& operator *= (const T& rhs) {
-                return get().operator T&() *= rhs;
-            }
-
-            /////////////////////////////////////////////////
-            ///
-            /// Operator /=
-            ///
-            /////////////////////////////////////////////////
-
-            inline Component<C>& operator /= (const Component<C>& rhs) {
-                get() /= rhs.get();
-                return *this;
-            }
-
-            template<typename T>
-            inline Component<C>& operator /= (const Component<T>& rhs){
-                get() /= rhs.get();
-                return *this;
-            }
-
-            template<typename T>
-            inline T& operator /= (const T& rhs) {
-                return get().operator T&() /= rhs;
-            }
-
-            /////////////////////////////////////////////////
-            ///
-            /// Operator ++
-            ///
-            /////////////////////////////////////////////////
-
-            inline C& operator++() {
-                ++get();
-                return *this;
-            }
-
-            inline C operator++(int) {
-                C tmp(get());
-                operator++();
-                return tmp;
-            }
-
-            /////////////////////////////////////////////////
-            ///
-            /// Operator --
-            ///
-            /////////////////////////////////////////////////
-
-            inline C& operator--() {
-                --get();
-                return *this;
-            }
-
-            inline C operator--(int) {
-                C tmp(get());
-                operator--();
-                return tmp;
-            }
-
-
-        private:
-            ComponentManager<C> *manager_;
-            index_t index_;
-
-            friend class ComponentManager<C>;
-        }; //Component
-
     private:
         class BaseEntityAlias {
         public:
@@ -1213,7 +830,7 @@ namespace details{
 
             /// Returns the requested component, or error if it doesn't exist
             template<typename C>
-            inline Component<C> get(){
+            inline C& get(){
                 return details::call_if<is_component<C>::value>(
                         [&](){ return manager_->get_component_fast<C>(entity_); },
                         [&](){ return manager_->get_component<C>(entity_); });
@@ -1223,7 +840,7 @@ namespace details{
             /// a new one is created. Otherwise, the assignment operator
             /// is used.
             template<typename C, typename ... Args>
-            inline Component<C> set(Args && ... args){
+            inline C& set(Args && ... args){
                 return details::call_if<is_component<C>::value>(
                         [&](){ return manager_->set_component_fast<C>(entity_, std::forward<Args>(args)...); },
                         [&](){ return manager_->set_component<C>(entity_, std::forward<Args>(args)...); });
@@ -1231,7 +848,7 @@ namespace details{
 
             /// Add the requested component, error if component of the same type exist already
             template<typename C, typename ... Args>
-            inline Component<C> add(Args && ... args){
+            inline C& add(Args && ... args){
                 static_assert(!is_component<C>::value,
                               "Cannot add component, it already exist. Use set to override old component.");
                 return entity_.add(std::forward<Args>(args)...);
@@ -1447,11 +1064,6 @@ namespace details{
 
         template<typename Lambda>
         using with_ = with_t<details::function_traits<Lambda>::arity, Lambda>;
-
-        template<bool dummy = false>
-        static inline ComponentMask componentMask(){
-            return ComponentMask(1);
-        }
 
         template<typename C>
         static inline ComponentMask componentMask(){
@@ -1695,10 +1307,7 @@ namespace details{
         }
     };
 
-    template<class T>
-    using Component = EntityManager::Component<T>;
     template<typename ...Components>
     using EntityAlias = EntityManager::EntityAlias<Components...>;
     using Entity = EntityManager::Entity;
 } // namespace ecs
-} // namespace oscg

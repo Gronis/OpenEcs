@@ -3,7 +3,7 @@
 
 #include "ecs/ecs.h"
 
-using namespace oscg::ecs;
+using namespace ecs;
 
 namespace {
     struct Wheels {

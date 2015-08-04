@@ -63,15 +63,10 @@ Accessing components is just as easy
 entity.add<Health>(10);
 
 //Access the Health Component
-Component<Health> health = entity.get<Health>();
-//Access members of Health by using -> 
-health->value = 3;
-
-//Or just use a reference
 Health& health = entity.get<Health>();
 health.value = 3;
 
-//NOTE, you can use reference, but do not use value
+//NOTE, you should use reference, not value
 //otherwise, the components will be copies and
 //any change made to it will not be registered
 //on the acctual component
@@ -95,9 +90,8 @@ entities.destroy(entity);
 Removing Components is done by using the remove function
 ```cpp
 Entity entity = entities.create();
+entity.add<Health>(0);
 entity.remove<Health>();
-//or
-entity.get<Health>().remove();
 ```
 
 ### Iterating throught the EntityManager
@@ -146,7 +140,7 @@ public:
 		EntityManager& entities = entities();
 
 		for(auto entity : entities.with<Health>()){
-			if(entity.get<Health>()->value <= 0){
+			if(entity.get<Health>().value <= 0){
 				//Destroy the entitiy
 				entity.destroy();
 			}
@@ -186,7 +180,7 @@ public:
 	//here we can hide the implementation details of how the components
 	//are used by the entity, and provide ordinary functions instead.
 	void kill(){
-		get<Health>()->value = 0;
+		get<Health>().value = 0;
 	}
 
 	bool attack(Entity target){
@@ -232,7 +226,7 @@ The sweetness with using the "fetch_every" function is that it basically generat
 EntityManager entities;
 
 for(auto entity : entities.with<Health, Name>()){
-	entity.get<Health>()->value = 0;
+	entity.get<Health>().value = 0;
 }
 ```
 

@@ -4,7 +4,7 @@
 
 #include "ecs/ecs.h"
 
-using namespace oscg::ecs;
+using namespace ecs;
 
 namespace {
 
@@ -136,10 +136,10 @@ SCENARIO("Testing ecs framework, unittests"){
                     REQUIRE_NOTHROW(entity.get<Health>());
                 }
                 THEN("Unpack data from added components should work"){
-                    REQUIRE(entity.get<Health>()->value == 5);
-                    REQUIRE(entity.get<Mana>()->value == 10);
-                    REQUIRE(entity.get<Height>()->value == 15);
-                    REQUIRE(entity.get<Weight>()->value == 20);
+                    REQUIRE(entity.get<Health>().value == 5);
+                    REQUIRE(entity.get<Mana>().value == 10);
+                    REQUIRE(entity.get<Height>().value == 15);
+                    REQUIRE(entity.get<Weight>().value == 20);
                 }
                 THEN("Accessing other components should not work"){
                     REQUIRE_THROWS(entity.get<Clothes>());
@@ -158,15 +158,6 @@ SCENARIO("Testing ecs framework, unittests"){
                         REQUIRE(!entity.has<Health>());
                     }
                 }
-                AND_WHEN("When removing the Health component"){
-                    entity.get<Health>().remove();
-                    THEN("No Health component should exist"){
-                        REQUIRE(health_component_count == 0);
-                    }
-                    THEN("Entity should not have that component attached"){
-                        REQUIRE(!entity.has<Health>());
-                    }
-                }
                 AND_WHEN("When removing the Health component twice"){
                     entity.remove<Health>();
                     THEN("It should not work"){
@@ -174,10 +165,9 @@ SCENARIO("Testing ecs framework, unittests"){
                     }
                 }
                 AND_WHEN("When removing the Health component twice"){
-                    Component<Health> health = entity.get<Health>();
-                    health.remove();
+                    entity.remove<Health>();
                     THEN("It should not work"){
-                        REQUIRE_THROWS(health.remove());
+                        REQUIRE_THROWS(entity.remove<Health>());
                     }
                 }
                 AND_WHEN("Destroying the entity"){
@@ -190,14 +180,14 @@ SCENARIO("Testing ecs framework, unittests"){
                     Health& health = entity.get<Health>();
                     health.value = 123;
                     THEN("Health should be that value"){
-                        REQUIRE(entity.get<Health>()->value == 123);
+                        REQUIRE(entity.get<Health>().value == 123);
                     }
                 }
                 AND_WHEN("Accessing Component as value and change value"){
                     Health health = entity.get<Health>();
                     health.value = 123;
                     THEN("Health should not be that value"){
-                        REQUIRE(entity.get<Health>()->value != 123);
+                        REQUIRE(entity.get<Health>().value != 123);
                     }
                 }
             }
@@ -329,11 +319,11 @@ SCENARIO("Testing ecs framework, unittests"){
                         REQUIRE(health != (int)e1.get<Health>());
                     }
                 }
-                AND_WHEN("Accessing e1s' Health as a variable, and setting this variable to e4s' different Health"){
-                    Component<Health> health = e1.get<Health>();
+                AND_WHEN("Accessing e1s' Health as pointer, and setting this pointer to e4s' different Health"){
+                    Health& health = e1.get<Health>();
                     health = e4.get<Health>();
-                    THEN("Health of e1 should not change"){
-                        REQUIRE(e4.get<Health>()->value != e1.get<Health>()->value);
+                    THEN("Health of e1 should change"){
+                        REQUIRE(e4.get<Health>().value == e1.get<Health>().value);
                     }
                 }
             }
@@ -498,8 +488,8 @@ SCENARIO("Testing ecs framework, unittests"){
                 car.drive(1,1);
                 THEN("Car should be driving"){
                     REQUIRE(entity.has<Velocity>());
-                    REQUIRE(entity.get<Velocity>()->x == 1);
-                    REQUIRE(entity.get<Velocity>()->y == 1);
+                    REQUIRE(entity.get<Velocity>().x == 1);
+                    REQUIRE(entity.get<Velocity>().y == 1);
                 }
             }
             WHEN("Assumeing Entity has Wheels, should work"){
@@ -563,10 +553,10 @@ SCENARIO("Testing ecs framework, unittests"){
                     REQUIRE(health == 1);
                     REQUIRE(mana == 1);
                     AND_WHEN("Adding 1 to Mana"){
-                        mana->value += 1;
+                        mana.value += 1;
                         THEN("Mana should be 2"){
                             mana = entity.get<Mana>();
-                            REQUIRE(mana->value == 2);
+                            REQUIRE(mana.value == 2);
                         }
                     }
                 }
@@ -591,8 +581,8 @@ SCENARIO("Testing ecs framework, unittests"){
         WHEN("Creating a car using the EntityManager with speed 10,10"){
             auto car = entities.create<Car>(10, 10);
             THEN("Speed should be 10"){
-                REQUIRE(car.get<Velocity>()->x == 10);
-                REQUIRE(car.get<Velocity>()->y == 10);
+                REQUIRE(car.get<Velocity>().x == 10);
+                REQUIRE(car.get<Velocity>().y == 10);
             }
         }
         WHEN("Creating a car using the EntityManager without setting speed"){
