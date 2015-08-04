@@ -4,7 +4,10 @@
 Open Ecs is an Entity Component System that uses metaprogramming, cache coherency, and other useful tricks to maximize 
 performance and configurability. It is written in c++11 without further dependencies.
 
-NOTE: OpenEcs is still in beta and usage with the library might change.
+NOTE: OpenEcs is still in beta and usage with the library might change. If you need a complete ECS library for a serious
+project, I suggest looking further. I want more stuff like custom component allcators and perhaps a compile time 
+configurable EntityManager and SystemManager. Let me know what you think and what you think is missing, I hope you enjoy
+using OpenEcs.
 
 ##Why OpenEcs?
 I authored OpenEcs after using other ECS libraries. The main reason for this was that I wanted to write my own, and it 
@@ -12,7 +15,8 @@ wasn't supposed to become its own library. As I progressed, I thought it might b
 slightly became a library with a different approach than the others.
 
 ##Installation
-Just [Download](https://github.com/Gronis/OpenEcs/raw/master/src/ecs/ecs.h) the header and include it into your project. Make sure to enable c++11 when compiling. (-std=c++11 or -std=c++0x)
+Just [Download](https://github.com/Gronis/OpenEcs/raw/master/src/ecs/ecs.h) the header and include it into your project.
+Make sure to enable c++11 when compiling. (-std=c++11 or -std=c++0x)
 
 ##Standard Feature's:
 The first thing you need is somewhere to store the entities. This is called the EntityManager and is created like this:
@@ -39,7 +43,7 @@ Adding components to entities is easy. Bur first we must define a Component. A C
 ```cpp
 
 struct Health{
-	Health(int value) : this->value(value)
+	Health(int value) : value(value)
 	int value;	
 };
 
@@ -181,8 +185,8 @@ coherency, OpenEcs has some extra features.
 
 As an object oriented programmer, the ability to encapsulate the implementation as much as possible is desired. By using 
 EntityAlias, an Entity can be wrapped inside these, witch then define all functions needed. then, the systems can 
-interact with these EntityAliases instead of the entity. This takes no extra performance, and creates an abstraction later 
-between actual ECS implementation and the desired action.
+interact with these EntityAliases instead of the entity. This takes no extra performance, and creates an abstraction 
+later between actual ECS implementation and the desired action.
 
 Defining an EntityAlias
 ```cpp
@@ -209,7 +213,8 @@ entity and the actual components. If new data needs to be associated with the en
 new components instead
 
 The EntityAlias assumes that the entity has all components provided by the inheritance.
-We can get every entity that can be accociated as an Actor (all entities with Health and Name in this case) by using the "fetch_every" function, or a from a single Entity using the "as" function.
+We can get every entity that can be accociated as an Actor (all entities with Health and Name in this case) by using the
+"fetch_every" function, or a from a single Entity using the "as" function.
 
 ```cpp
 EntityManager entities;
@@ -272,11 +277,14 @@ EntityManager entities;
 Actor actor = entities.create<Actor>(10, "Evil Dude");
 
 ```
-This results in a useful factory method for any EntityAlias. Another good thing is that what an Entity is, is defined by its components, and enables entities to be several things at the same time, without using hierarchy (Which is the idea behind Entity Component Systems).
+This results in a useful factory method for any EntityAlias. Another good thing is that what an Entity is, is defined by
+its components, and enables entities to be several things at the same time, without using hierarchy (Which is the idea 
+behind Entity Component Systems).
 
 ###Performance
 
-On my Apple MBP Retina 13" 2014 computer, this is some performance tests using 10 000 000 entities with some components attached:
+On my Apple MBP Retina 13" 2014 computer, this is some performance tests using 10 000 000 entities with some components 
+attached:
 
 | Operation											 	| 	   Time 	 |
 |-------------------------------------------------------|---------------|
@@ -325,7 +333,8 @@ entities.with([](Health& health, Name& name){ });
 ```
 
 ##A complete example
-This examples illustrates two spellcasters: Alice and Bob, and their fight to the death. Prints the winner and remaining health and mana.
+This examples illustrates two spellcasters: Alice and Bob, and their fight to the death. Prints the winner and remaining
+health and mana.
 
 ```cpp
 #include <iostream>
