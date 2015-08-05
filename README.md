@@ -43,8 +43,8 @@ Adding components to entities is easy. Bur first we must define a Component. A C
 ```cpp
 
 struct Health{
-	Health(int value) : value(value)
-	int value;	
+    Health(int value) : value(value)
+    int value;  
 };
 
 EntityManager entities;
@@ -83,6 +83,16 @@ Health health = entity.get<Health>();
 health.value = 3; // <- does not apply any change
 
 ```
+Accessing a component which does not exist on a specified entity, this will throw an exception. To check if an entitiy has a specified component, use the "has" function.
+
+```cpp
+Entity entity = entities.create();
+bool has_health = entity.has<Health>(); //Returns false
+
+entity.add<Health>(10);
+has_health = entity.has<Health>(); //Returns true
+
+```
 
 ### Removing Entities and Components
 
@@ -100,8 +110,21 @@ Entity entity = entities.create();
 entity.add<Health>(0);
 entity.remove<Health>();
 ```
+Destroying an entity removes all components and calls their destructors. it also opens that memory slot for another entity to take its place.
 
-### Iterating throught the EntityManager
+When an entity is destroyed. It is no longer valid, and any action used with it should not work
+```cpp
+entity.destroy();
+//Does not work
+entity.add<Health>(0); // <- throws exception, Entity invalid
+
+//Check if entity is valid
+bool valid = entity.valid();
+```
+
+To track if an entity is valid. OpenEcs accociates each entity with a version when accessed from the EntityManager. Whenever an entity is destoyed, the version for that Entity changes, and all entities with the old versions are invalid, as they no longer exists.
+
+### Iterating through the EntityManager
 To access components with certain components. There is a "with" function that looks like this
 
 ```cpp
@@ -110,14 +133,14 @@ EntityManager entities;
 //Iterate through the entities, grabbing each 
 //component with Health and Mana component
 for(Entity entity : entities.with<Health, Mana>()){
-	entity.get<Health>(); //Do things with health
-	entity.get<Mana>(); //Do things with mana
+    entity.get<Health>(); //Do things with health
+    entity.get<Mana>(); //Do things with mana
 }
 
 //There is also a functional style iteration that works 
 //with a provided lambda.
 entities.with([](Health& health, Mana& mana){
-	health.value = 2; //Do stuff
+    health.value = 2; //Do stuff
 });
 
 //NOTE, use reference, not values as parameters.
@@ -128,6 +151,8 @@ entities.with([](Health& health, Mana& mana){
 ```
 
 ###Systems
+Systems define our behavior. The SystemManager provided by OpenEcs is very simple and is just a wrapper around an interface with an update function, together with the entities.
+
 First we define our SystemManager
 
 ```cpp
@@ -140,19 +165,22 @@ Then we create a system class.
 Any new system class must inherit the System class like this:
 
 ```cpp
+//     Provide the type as template argument here
+//                  | _________________________
+//                  |                          |
+//                  v                          v
 class RemoveCorpsesSystem : public System<RemoveCorpsesSystem>{
 public:
-	virtual void update(float time){
-		//Get EntityManager
-		EntityManager& entities = entities();
+    virtual void update(float time){
 
-		for(auto entity : entities.with<Health>()){
-			if(entity.get<Health>().value <= 0){
-				//Destroy the entity
-				entity.destroy();
-			}
-		}
-	}
+        // Get the entity manager using entities() function
+        for(auto entity : entities().with<Health>()){
+            if(entity.get<Health>().value <= 0){
+                //Destroy the entity
+                entity.destroy();
+            }
+        }
+    }
 };
 
 EntityManager entities;
@@ -192,19 +220,19 @@ Defining an EntityAlias
 ```cpp
 class Actor : public EntityAlias<Health, Name /* Any required component*/ >{
 public:
-	//here we can hide the implementation details of how the components
-	//are used by the entity, and provide ordinary functions instead.
-	void kill(){
-		get<Health>().value = 0;
-	}
+    //here we can hide the implementation details of how the components
+    //are used by the entity, and provide ordinary functions instead.
+    void kill(){
+        get<Health>().value = 0;
+    }
 
-	bool attack(Entity target){
-		if(!has<AttackAction>()){
-			add<AttackAction>(target);
-			return true;
-		}
-		return false;
-	}
+    bool attack(Entity target){
+        if(!has<AttackAction>()){
+            add<AttackAction>(target);
+            return true;
+        }
+        return false;
+    }
 };
 ```
 
@@ -225,11 +253,11 @@ entity.add<Name>("");
 
 // Access all entities that has all required components that an Actor has
 for(Actor actor : entities.fetch_every<Actor>()){
-	actor.kill(); //For example
+    actor.kill(); //For example
 }
 //or with lambda
 entities.fetch_every([](Actor& actor){
-	actor.kill();
+    actor.kill();
 });
 
 //Access one entity as EntityAlias
@@ -242,7 +270,7 @@ The sweetness with using the "fetch_every" function is that it basically generat
 EntityManager entities;
 
 for(auto entity : entities.with<Health, Name>()){
-	entity.get<Health>().value = 0;
+    entity.get<Health>().value = 0;
 }
 ```
 
@@ -254,16 +282,16 @@ like this:
 
 ```cpp
 class Actor : public EntityAlias<Health, Name>{
-									^     ^
-      								 \_____\
-public:									    \
-	Actor(int health, std::string name){     \
-		set<Health>(health);				  \
-		set<Name>(name);					   \
-		//Make sure you set all required components.
-		//Missing any required component will result
-		//in a runtime error.
-	}
+                                    ^     ^
+                                     \_____\
+public:                                     \
+    Actor(int health, std::string name){     \
+        set<Health>(health);                  \
+        set<Name>(name);                       \
+        //Make sure you set all required components.
+        //Missing any required component will result
+        //in a runtime error.
+    }
 };
 ```
 
@@ -281,23 +309,61 @@ This results in a useful factory method for any EntityAlias. Another good thing 
 its components, and enables entities to be several things at the same time, without using hierarchy (Which is the idea 
 behind Entity Component Systems).
 
+###Override operators
+It would be useful if the components override some basic operators for cleaner code.
+```cpp
+//Using == operator of component class
+bool health_equals_mana = 
+    entity.get<Health>() == entity.get<Mana>();
+
+//If no operators are defined, we must write it like this
+bool health_equals_mana = 
+    entity.get<Health>().value == entity.get<Mana>().value;
+```
+However, defining operators for each component can be very anoying and time consume. In most cases (like the example above) almost unneccecary. If the component only has one property. In the case of Health in this example. There is a class called Property<T> which overrides useful operators. The Component class may extend this class to inherit some basic operators.
+
+```cpp
+struct Health : Property<int>{
+  //Define constructor like this
+  Health(int value) : Property<int>(value){};  
+  //Or like this
+  Health(int value){
+    this->value = value;
+  }; 
+};
+```
+
+Now we should have some useful operator implementations for the health component which enables cleaner code
+
+```cpp
+// operator >
+if(entity.get<Health>() > 10){
+    
+}
+// without using operator >
+if(entity.get<Health>().value > 10){
+    
+}
+```
+NOTE: Remember that any class can be a component, and that it is optional to use Property<T>, as overriding operators is not always desired. For those who does not what to use overridden operators, leave out the Property<T> class.
+
 ###Performance
 
 On my Apple MBP Retina 13" 2014 computer, this is some performance tests using 10 000 000 entities with some components 
 attached:
 
-| Operation											 	| 	   Time 	 |
+| Operation                                             |      Time      |
 |-------------------------------------------------------|---------------|
-| create()                        					 	|     0.31s     |
-| create(10M) 										 	|     0.19s     |
-| destroy()   										 	|     0.54s     |
-| iterating using with for-loop (without unpacking)	 	|     0.00986s  |
-| iterating using with for-loop (unpack one component) 	|     0.01579s  |
-| iterating using with lambda (unpack one component) 	|     0.01609s  |
+| create()                                              |     0.31s     |
+| create(10M)                                           |     0.19s     |
+| destroy()                                             |     0.54s     |
+| iterating using with for-loop (without unpacking)     |     0.00986s  |
+| iterating using with for-loop (unpack one component)  |     0.01579s  |
+| iterating using with lambda (unpack one component)    |     0.01609s  |
 | iterating using with for-loop (unpack two components) |     0.01847s  |
-| iterating using with lambda (unpack two components)	|     0.01886s  |
-| iterating using fetch_every for-loop			 	 	|     0.00909s  |
-| iterating using fetch_every lambda				 	|     0.00916s  |
+| iterating using with lambda (unpack two components)   |     0.01886s  |
+| iterating using fetch_every for-loop                  |     0.00909s  |
+| iterating using fetch_every lambda                    |     0.00916s  |
 
 To improve performance iterate by using auto when iterating with a for loop
 
@@ -318,8 +384,8 @@ runtime check when we iterate through the list. Why do it again?
 
 ```cpp  
 for(auto entity : entities.with<Health, Name>()){
-	entity.get<Health>(); // <- No runtime check. Fast
-	entity.get<Mana>(); // <- Runtime check required. Slow(er), May throw exception
+    entity.get<Health>(); // <- No runtime check. Fast
+    entity.get<Mana>(); // <- Runtime check required. Slow(er), May throw exception
 }
 
 ```

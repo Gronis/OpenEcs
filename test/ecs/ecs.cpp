@@ -22,6 +22,8 @@
 
 #include "ecs/ecs.h"
 
+class e;
+
 using namespace ecs;
 
 namespace {
@@ -44,7 +46,9 @@ struct Health : Property<int> {
 
 
 struct Mana : Property<int> {
-    Mana(int value) : Property<int>(value) { }
+    Mana(int value) {
+        this->value = value;
+    }
 };
 
 struct Weight : Property<int> {
@@ -342,6 +346,18 @@ SCENARIO("Testing ecs framework, unittests"){
                     health = e4.get<Health>();
                     THEN("Health of e1 should change"){
                         REQUIRE(e4.get<Health>().value == e1.get<Health>().value);
+                    }
+                }
+                THEN("Iterating over entities with health as type Entity should compile"){
+                    for(Entity e : entities.with<Health>()){}
+                }
+                THEN("Iterating over entities with health as type EntityAlias<Health> should compile"){
+                    for(EntityAlias<Health> e : entities.with<Health>()){}
+                }
+                THEN("Iterating over entities with health as type EntityAlias<Health> should compile"){
+                    for(auto e : entities.with<Health>()){
+                        typedef std::is_same<decltype(e), EntityAlias<Health>> e_is_entity_alias;
+                        REQUIRE(e_is_entity_alias::value);
                     }
                 }
             }
