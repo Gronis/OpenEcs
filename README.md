@@ -5,9 +5,9 @@ Open Ecs is an Entity Component System that uses metaprogramming, cache coherenc
 performance and configurability. It is written in c++11 without further dependencies.
 
 NOTE: OpenEcs is still in beta and usage with the library might change. If you need a complete ECS library for a serious
-project, I suggest looking further. I want more stuff like custom component allcators and perhaps a compile time 
-configurable EntityManager and SystemManager. Let me know what you think and what you think is missing, I hope you enjoy
-using OpenEcs.
+project, I suggest looking further. I want more stuff like custom component allocators and perhaps a compile time 
+configurable EntityManager and SystemManager. Some way to handle events might be useful. to include.
+Let me know what you think and what is missing, I hope you enjoy using OpenEcs.
 
 ##Why OpenEcs?
 I authored OpenEcs after using other ECS libraries. The main reason for this was that I wanted to write my own, and it 
@@ -107,7 +107,7 @@ To access components with certain components. There is a "with" function that lo
 ```cpp
 EntityManager entities;
 
-//Iterate through the entities, grabing each 
+//Iterate through the entities, grabbing each 
 //component with Health and Mana component
 for(Entity entity : entities.with<Health, Mana>()){
 	entity.get<Health>(); //Do things with health
@@ -148,7 +148,7 @@ public:
 
 		for(auto entity : entities.with<Health>()){
 			if(entity.get<Health>().value <= 0){
-				//Destroy the entitiy
+				//Destroy the entity
 				entity.destroy();
 			}
 		}
@@ -209,11 +209,11 @@ public:
 ```
 
 NOTE: An EntityAlias class cannot define new member variables. It is only a wrapper between the
-entity and the actual components. If new data needs to be associated with the entity, intruduce 
+entity and the actual components. If new data needs to be associated with the entity, introduce 
 new components instead
 
 The EntityAlias assumes that the entity has all components provided by the inheritance.
-We can get every entity that can be accociated as an Actor (all entities with Health and Name in this case) by using the
+We can get every entity that can be associated as an Actor (all entities with Health and Name in this case) by using the
 "fetch_every" function, or a from a single Entity using the "as" function.
 
 ```cpp
