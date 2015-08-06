@@ -117,50 +117,6 @@ namespace details{
     };
 
 
-
-
-    ///--------------------------------------------------------------------
-    /// Call different functions depending on a compile-time condition
-    ///
-    /// if condition is true, call first function provided
-    /// else call second function provided
-    ///
-    /// NOTE: function must me lambdas for now, TODO: fix
-    ///--------------------------------------------------------------------
-    template<bool value>
-    struct call_if_t;
-
-    template<>
-    struct call_if_t<true>{
-        template<typename F1, typename F2, typename ...Args>
-        static inline typename function_traits<F1>::return_type call(F1 f1,
-                                                                     F2 f2,
-                                                                     Args && ... args){
-            return f1(std::forward<Args>(args)...);
-        }
-    };
-
-    template<>
-    struct call_if_t<false>{
-        template<typename F1, typename F2, typename ...Args>
-        static inline typename function_traits<F2>::return_type call(F1 f1,
-                                                                     F2 f2,
-                                                                     Args && ... args){
-            return f2(std::forward<Args>(args)...);
-        }
-    };
-
-    template<bool value, typename F1, typename F2, typename ...Args>
-    typename function_traits<F1>::return_type call_if(F1 f1, F2 f2, Args && ... args){
-        static_assert(std::is_same<typename function_traits<F1>::return_type,
-                                   typename function_traits<F2>::return_type>::value,
-            "Both functions must have the same return type");
-        return call_if_t<value>::call(f1, f2, std::forward<Args>(args)...);
-    }
-
-
-
-
     ///---------------------------------------------------------------------
     /// Determine if type is part of a list of types
     ///---------------------------------------------------------------------
@@ -822,20 +778,26 @@ namespace details{
 
             /// Returns the requested component, or error if it doesn't exist
             template<typename C>
-            inline C& get(){
-                return details::call_if<is_component<C>::value>(
-                        [&]() -> C& { return manager_->get_component_fast<C>(entity_); },
-                        [&]() -> C& { return manager_->get_component<C>(entity_); });
+            inline typename std::enable_if<is_component<C>::value, C&>::type get(){
+                return manager_->get_component_fast<C>(entity_);
+            }
+
+            template<typename C>
+            inline typename std::enable_if<!is_component<C>::value, C&>::type get(){
+                return manager_->get_component<C>(entity_);
             }
 
             /// Set the requested component, if old component exist,
             /// a new one is created. Otherwise, the assignment operator
             /// is used.
             template<typename C, typename ... Args>
-            inline C& set(Args && ... args){
-                return details::call_if<is_component<C>::value>(
-                        [&]() -> C& { return manager_->set_component_fast<C>(entity_, std::forward<Args>(args)...); } ,
-                        [&]() -> C& { return manager_->set_component<C>(entity_, std::forward<Args>(args)...); });
+            inline typename std::enable_if<is_component<C>::value, C&>::type set(Args && ... args){
+                return manager_->set_component_fast<C>(entity_, std::forward<Args>(args)...);
+            }
+
+            template<typename C, typename ... Args>
+            inline typename std::enable_if<!is_component<C>::value, C&>::type set(Args && ... args){
+                return manager_->set_component<C>(entity_, std::forward<Args>(args)...);
             }
 
             /// Add the requested component, error if component of the same type exist already
@@ -861,16 +823,17 @@ namespace details{
 
             /// Removes a component. Error of it doesn't exist. Cannot remove dependent components
             template<typename C>
-            inline void remove(){
-                static_assert(!is_component<C>::value,
-                              "Cannot remove dependent component. Use force_remove instead.");
+            inline typename std::enable_if<!is_component<C>::value, void>::type remove(){
                 entity_.remove<C>();
             }
 
             template<typename C>
-            inline void force_remove(){
+            inline typename std::enable_if<is_component<C>::value, void>::type remove(){
+                //static_assert(!is_component<C>::value,
+                //              "Cannot remove dependent component. Use as<Entity>().remove() instead.");
                 entity_.force_remove<C>();
             }
+
 
             /// Removes all components and call destructors
             inline void remove_everything(){
@@ -1035,32 +998,58 @@ namespace details{
         template<size_t N, typename...>
         struct with_t;
 
-        template<size_t N, typename Lambda, typename... Components>
-        struct with_t<N, Lambda, Components...> :
-                with_t<N - 1, Lambda, typename details::function_traits<Lambda>::template arg_remove_ref<N - 1> ,Components...>{};
+        template<size_t N, typename Lambda, typename... Args>
+        struct with_t<N, Lambda, Args...> :
+                with_t<N - 1, Lambda,
+                        typename details::function_traits<Lambda>::template arg_remove_ref<N - 1> ,Args...>{};
 
-        template<typename Lambda, typename... Components>
-        struct with_t<0, Lambda, Components...>{
-            static void for_each(EntityManager& manager, Lambda lambda){
-                auto view = manager.with<Components...>();
+        template<typename Lambda, typename... Args>
+        struct with_t<0, Lambda, Args...>{
+            static inline void for_each(EntityManager& manager, Lambda lambda){
+                auto view = manager.with<Args...>();
                 auto it = view.begin();
                 auto end = view.end();
                 for(; it != end; ++it){
-                    lambda(manager.get_component_fast<Components>(it.index())...);
+                    lambda(get_arg<Args>(manager, it.index())...);
                 }
+            }
+
+            //When arg is component, access component
+            template<typename C>
+            static inline auto get_arg(EntityManager& manager, index_t index) ->
+                typename std::enable_if<!std::is_same<C, Entity>::value, C&>::type{
+                return manager.get_component_fast<C>(index);
+            }
+
+            //When arg is the Entity, access the Entity
+            template<typename C>
+            static inline auto get_arg(EntityManager& manager, index_t index) ->
+            typename std::enable_if<std::is_same<C, Entity>::value, Entity>::type{
+                return manager.get(index);
             }
         };
 
         template<typename Lambda>
         using with_ = with_t<details::function_traits<Lambda>::arity, Lambda>;
 
+        //C1 should not be Entity
         template<typename C>
-        static inline ComponentMask componentMask(){
-            return ComponentMask((1 << Component<C>::family()));
+        static inline auto componentMask() -> typename
+        std::enable_if<!std::is_same<C, Entity>::value, ComponentMask>::type{
+            return ComponentMask((1UL << Component<C>::family()));
         }
+
+        //When C1 is Entity, ignore
+        template<typename C>
+        static inline auto componentMask() -> typename
+        std::enable_if<std::is_same<C, Entity>::value, ComponentMask>::type{
+            return ComponentMask(0);
+        }
+
         //recursive function for componentMask creation
         template<typename C1, typename C2, typename ...Cs>
-        static inline ComponentMask componentMask(){
+        static inline auto componentMask() -> typename
+                std::enable_if<!std::is_same<C1, Entity>::value, ComponentMask>::type{
             return componentMask<C1>() | componentMask<C2, Cs...>();
         }
 

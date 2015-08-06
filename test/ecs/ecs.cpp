@@ -83,6 +83,7 @@ struct Wheels {
 };
 
 struct Car : EntityAlias<Wheels> {
+    typedef float hej;
 
     Car(float x, float y){
         set<Wheels>();
@@ -94,6 +95,9 @@ struct Car : EntityAlias<Wheels> {
     }
 
     void drive(float x, float y) {
+        hej h;
+        typedef int hej;
+        hej h2;
         set<Velocity>(x, y);
     }
 
@@ -570,13 +574,21 @@ SCENARIO("Testing ecs framework, unittests"){
                     });
                     REQUIRE(count == 1);
                 }
+                THEN("Unpacking Wheels and entity should work"){
+                    int count = 0;
+                    entities.with([&](Wheels& wheels, Entity entity){
+                        ++count;
+                        REQUIRE(&entity.get<Wheels>() == &wheels);
+                    });
+                    REQUIRE(count == 1);
+                }
                 THEN("Getting Health and Mana using get should result in using different get functions"){
                     int count = 0;
                     for (auto e : entities.with<Wheels, Health>()) {
                         ++count;
                         REQUIRE(e.get<Health>() == 1);
                         REQUIRE(e.get<Mana>() == 1);
-                        e.force_remove<Wheels>();
+                        e.remove<Wheels>();
                     }
                     REQUIRE(count == 1);
                 }

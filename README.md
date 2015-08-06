@@ -83,7 +83,7 @@ Health health = entity.get<Health>();
 health.value = 3; // <- does not apply any change
 
 ```
-Accessing a component which does not exist on a specified entity, this will throw an exception. To check if an entitiy has a specified component, use the "has" function.
+Accessing a component which does not exist on a specified entity, will throw an exception. To check if an entitiy has a specified component, use the "has" function.
 
 ```cpp
 Entity entity = entities.create();
@@ -143,7 +143,14 @@ entities.with([](Health& health, Mana& mana){
     health.value = 2; //Do stuff
 });
 
+//If you need the entity, include it as well
+entities.with([](Health& health, Mana& mana, Entity entity){
+    health.value = 2; //Do stuff
+    entity.remove<Health>();
+});
+
 //NOTE, use reference, not values as parameters.
+//(with the exception of Entity)
 //Otherwise, the components will be copied and
 //any change made to it will not be registered
 //on the acctual component
@@ -270,7 +277,7 @@ The sweetness with using the "fetch_every" function is that it basically generat
 EntityManager entities;
 
 for(auto entity : entities.with<Health, Name>()){
-    entity.get<Health>().value = 0;
+    entity.get<Health>().value = 0; // actor.kill();
 }
 ```
 
