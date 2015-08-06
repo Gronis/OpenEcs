@@ -426,9 +426,9 @@ struct Name{
 struct Spellcaster : public EntityAlias<Name, Health, Mana>{
     Spellcaster() : Spellcaster("NoName", 0, 0){ };
     Spellcaster(std::string name, int health, int mana){
-        set<Name>(name);
-        set<Health>(health);
-        set<Mana>(mana);
+        add<Name>(name);
+        add<Health>(health);
+        add<Mana>(mana);
     }
     bool isOom(){
         return get<Mana>().value == 0;
@@ -445,7 +445,7 @@ struct Spellcaster : public EntityAlias<Name, Health, Mana>{
 
 class RemoveCorpsesSystem : public System<RemoveCorpsesSystem>{
 public:
-    virtual void update(float time){
+    void update(float time) override {
         for(auto entity : entities().with<Health>()){
             if(entity.get<Health>().value <= 0){
                 entity.destroy();
@@ -456,7 +456,7 @@ public:
 
 class CastSpellSystem : public System<CastSpellSystem>{
 public:
-    virtual void update(float time){
+    void update(float time) override {
         entities().fetch_every([&] (Spellcaster& spellcaster1){
             entities().fetch_every([&] (Spellcaster& spellcaster2){
                 if(spellcaster1 != spellcaster2){
@@ -469,7 +469,7 @@ public:
 
 class GiveManaSystem : public System<GiveManaSystem>{
 public:
-    virtual void update(float time){
+    void update(float time) override {
         entities().fetch_every([] (Spellcaster& spellcaster){
             if(spellcaster.isOom()) spellcaster.set<Mana>(1337);
         });
