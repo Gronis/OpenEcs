@@ -24,57 +24,32 @@
 #include <functional>
 #include <assert.h>
 
-namespace ecs{
-
-    #define ASSERT_IS_ENTITY(T)                                                             \
+#define ECS_ASSERT_IS_ENTITY(T)                                                             \
         static_assert(std::is_base_of<BaseEntityAlias, T>::value ||                         \
                   std::is_same<Entity, T>::value ,                                          \
         #T " does not inherit EntityInterface.");
 
-    #define ASSERT_ENTITY_CORRECT_SIZE(T)                                                   \
+#define ECS_ASSERT_ENTITY_CORRECT_SIZE(T)                                                   \
         static_assert(sizeof(BaseEntityAlias) == sizeof(T),                                 \
         #T " should not include new variables, add them as Components instead.");           \
 
-    #define MAX_NUM_OF_COMPONENTS 32
-    #define DEFAULT_CHUNK_SIZE 8192
+#define ECS_ASSERT_VALID_ENTITY(E)                                                          \
+        assert(valid(E) && "Entity is no longer valid");                                    \
+
+#define ECS_ASSERT_IS_SYSTEM(S)                                                                \
+            static_assert(std::is_base_of<BaseSystem, S>::value,                            \
+            "DirivedSystem must inherit System<DirivedSystem>.");                           \
+
+#define ECS_MAX_NUM_OF_COMPONENTS 32
+#define ECS_DEFAULT_CHUNK_SIZE 8192
+
+namespace ecs{
 
     /// Type used for entity index
     typedef u_int32_t index_t;
 
     /// Type used for entity version
     typedef uint8_t version_t;
-
-namespace exceptions{
-    ///---------------------------------------------------------------------
-    /// Exceptions used by the ecs
-    ///---------------------------------------------------------------------
-    ///
-    class RedundantComponentException : public std::exception{
-        virtual const char* what() const throw(){
-            return "Entity already has this component attached.";
-        }
-    };
-    class RedundantSystemException : public std::exception{
-        virtual const char* what() const throw(){
-            return "SystemManager already has system of that type.";
-        }
-    };
-    class MissingComponentException : public std::exception{
-        virtual const char* what() const throw(){
-            return "Entity has no component of this type attached.";
-        }
-    };
-    class MissingSystemException : public std::exception{
-        virtual const char* what() const throw(){
-            return "SystemManager does not have system of that type.";
-        }
-    };
-    class InvalidEntityException : public std::exception{
-        virtual const char* what() const throw(){
-            return "This entity is invalid.";
-        }
-    };
-}; //namespace exceptions
 
 namespace details{
 
@@ -160,7 +135,7 @@ namespace details{
     ///---------------------------------------------------------------------
     class BasePool {
     public:
-        explicit BasePool(size_t element_size, size_t chunk_size = DEFAULT_CHUNK_SIZE) :
+        explicit BasePool(size_t element_size, size_t chunk_size = ECS_DEFAULT_CHUNK_SIZE) :
                 size_(0),
                 capacity_(0),
                 element_size_(element_size),
@@ -358,7 +333,7 @@ namespace details{
         ///---------------------------------------------------------------------
         ///
         ///---------------------------------------------------------------------
-        typedef std::bitset<MAX_NUM_OF_COMPONENTS> ComponentMask;
+        typedef std::bitset<ECS_MAX_NUM_OF_COMPONENTS> ComponentMask;
 
         ///---------------------------------------------------------------------
         /// Helper class
@@ -427,7 +402,7 @@ namespace details{
         template<typename C>
         class ComponentManager : public BaseManager, details::NonCopyable{
         public:
-            ComponentManager(EntityManager& manager, size_t chunk_size = DEFAULT_CHUNK_SIZE) :
+            ComponentManager(EntityManager& manager, size_t chunk_size = ECS_DEFAULT_CHUNK_SIZE) :
                     manager_(manager),
                     pool_(chunk_size){}
 
@@ -440,12 +415,6 @@ namespace details{
             }
 
             void remove(index_t index){
-                if(!manager_.has_component<C>(index)) throw exceptions::MissingComponentException();
-                pool_.destroy(index);
-                manager_.mask(index).reset(Component<C>::family());
-            }
-
-            void force_remove(index_t index){
                 pool_.destroy(index);
                 manager_.mask(index).reset(Component<C>::family());
             }
@@ -555,9 +524,9 @@ namespace details{
             /// Access this Entity as an EntityAlias.
             template<typename T>
             inline T& as(){
-                ASSERT_IS_ENTITY(T);
-                ASSERT_ENTITY_CORRECT_SIZE(T);
-                if(!has(T::mask())) throw exceptions::MissingComponentException();
+                ECS_ASSERT_IS_ENTITY(T);
+                ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
+                assert(has(T::mask()) && "Entity doesn't have required components for this EntityAlias");
                 return reinterpret_cast<T&>(*this);
             }
 
@@ -588,7 +557,7 @@ namespace details{
             inline void destroy(){
                 manager_->destroy(*this);
             }
-            /// Return true if entity has all specified compoents. False otherwise
+            /// Return true if entity has all specified components. False otherwise
             template<typename... Components>
             inline bool has(){
                 return manager_->has_component<Components ...>(*this);
@@ -604,19 +573,6 @@ namespace details{
             }
 
         private:
-            /// Removes a component. Error of it doesn't exist
-            template<typename C>
-            inline void force_remove(){
-                manager_->remove_component_fast<C>(*this);
-            }
-
-            /// Access this Entity as an EntityAlias. Ignores entity mask.
-            template<typename T>
-            inline T&force_as(){
-                ASSERT_IS_ENTITY(T);
-                ASSERT_ENTITY_CORRECT_SIZE(T);
-                return reinterpret_cast<T&>(*this);
-            }
 
             /// Return true if entity has all specified compoents. False otherwise
             inline bool has(ComponentMask check_mask){
@@ -662,7 +618,7 @@ namespace details{
             }
 
             inline T operator*() {
-                return entity().template force_as<T>();
+                return entity().template as<T>();
             }
 
             inline index_t index(){
@@ -689,7 +645,7 @@ namespace details{
 
         template<typename T>
         class View{
-            ASSERT_IS_ENTITY(T)
+            ECS_ASSERT_IS_ENTITY(T)
         public:
             View(EntityManager* manager, ComponentMask mask) :
                     manager_(manager),
@@ -803,9 +759,7 @@ namespace details{
             /// Add the requested component, error if component of the same type exist already
             template<typename C, typename ... Args>
             inline C& add(Args && ... args){
-                static_assert(!is_component<C>::value,
-                              "Cannot add component, it already exist. Use set to override old component.");
-                return entity_.add(std::forward<Args>(args)...);
+                return entity_.add<C>(std::forward<Args>(args)...);
             }
 
             /// Access this Entity as an EntityAlias.
@@ -829,20 +783,17 @@ namespace details{
 
             template<typename C>
             inline typename std::enable_if<is_component<C>::value, void>::type remove(){
-                //static_assert(!is_component<C>::value,
-                //              "Cannot remove dependent component. Use as<Entity>().remove() instead.");
-                entity_.force_remove<C>();
+                manager_->remove_component_fast<C>(entity_);
             }
-
 
             /// Removes all components and call destructors
             inline void remove_everything(){
-                manager_->remove_all_components(*this);
+                entity_.remove_everything();
             }
 
             /// Clears the component mask without destroying components (faster than remove_everything)
             inline void clear_mask(){
-                manager_->clear_mask(*this);
+                entity_.clear_mask();
             }
 
             /// Destroys this entity. Removes all components as well
@@ -937,8 +888,8 @@ namespace details{
 
         template<typename T, typename ...Args>
         T create(Args... args){
-            ASSERT_IS_ENTITY(T);
-            ASSERT_ENTITY_CORRECT_SIZE(T);
+            ECS_ASSERT_IS_ENTITY(T);
+            ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
             Entity entity = create();
             T* entity_alias = new(&entity) T(std::forward<Args>(args)...);
             assert(entity.has(T::mask()) &&
@@ -966,7 +917,7 @@ namespace details{
         // Access all entities with
         template<typename T>
         View<T> fetch_every(){
-            ASSERT_IS_ENTITY(T);
+            ECS_ASSERT_IS_ENTITY(T);
             return View<T>(this, T::mask());
         }
 
@@ -986,7 +937,7 @@ namespace details{
 
         inline Entity operator[] (Entity::Id id){
             Entity entity = get(id);
-            if (id != entity.id()) throw exceptions::InvalidEntityException();
+            assert(id == entity.id() && "Id is no longer valid (Entity was destroyed)");
             return entity;
         }
 
@@ -1079,8 +1030,8 @@ namespace details{
 
         template<typename C>
         inline C& get_component(Entity& entity){
-            if(!has_component<C>(entity)) throw exceptions::MissingComponentException();
-            return get_component_fast<C>(entity);
+            assert(has_component<C>(entity) && "Entity doesn't have this component attached");
+            return get_component_manager<C>().get(entity.id_.index_);
         }
 
         /// Get component fast, no error checks. Use if it is already known that Entity has Component
@@ -1097,24 +1048,30 @@ namespace details{
 
         template<typename C, typename ...Args>
         inline C& create_component(Entity &entity, Args &&... args){
-            if(has_component<C>(entity)) throw exceptions::RedundantComponentException();
-            return set_component_fast<C>(entity, std::forward<Args>(args)...);
+            ECS_ASSERT_VALID_ENTITY(entity);
+            assert(!has_component<C>(entity) && "Entity already has this component attached");
+            C& component = get_component_manager<C>().create(entity.id_.index_, std::forward<Args>(args) ...);
+            entity.mask() |= componentMask<C>();
+            return component;
         }
 
         template<typename C>
         inline void remove_component(Entity& entity){
-            if(!entity.valid()) throw exceptions::InvalidEntityException();
+            ECS_ASSERT_VALID_ENTITY(entity);
+            assert(has_component<C>(entity) && "Entity doesn't have component attached");
             get_component_manager<C>().remove(entity.id_.index_);
         }
 
         template<typename C>
         inline void remove_component_fast(Entity& entity){
-            if(!entity.valid()) throw exceptions::InvalidEntityException();
-            get_component_manager<C>().force_remove(entity.id_.index_);
+            ECS_ASSERT_VALID_ENTITY(entity);
+            assert(has_component<C>(entity) && "Entity doesn't have component attached");
+            get_component_manager_fast<C>().remove(entity.id_.index_);
         }
 
         /// Removes all components from a single entity
         inline void remove_all_components(Entity& entity){
+            ECS_ASSERT_VALID_ENTITY(entity);
             for (auto componentManager : component_managers_) {
                 if(componentManager && has_component(entity, componentManager->mask())) {
                     componentManager->remove(entity.id_.index_);
@@ -1123,23 +1080,26 @@ namespace details{
         }
 
         inline void clear_mask(Entity &entity){
+            ECS_ASSERT_VALID_ENTITY(entity);
             component_masks_[entity.id_.index_].reset();
         }
 
         template<typename C, typename ...Args>
         inline C& set_component(Entity& entity, Args && ... args){
+            ECS_ASSERT_VALID_ENTITY(entity);
             if(entity.has<C>()) return get_component_fast<C>(entity) = C(args...);
-            else return set_component_fast<C>(entity, std::forward<Args>(args)...);
+            else return create_component<C>(entity, std::forward<Args>(args)...);
         }
 
         template<typename C, typename ...Args>
         inline C& set_component_fast(Entity& entity, Args && ... args){
-            C& component = get_component_manager<C>().create(entity.id_.index_, std::forward<Args>(args) ...);
-            entity.mask() |= componentMask<C>();
-            return component;
+            ECS_ASSERT_VALID_ENTITY(entity);
+            assert(entity.has<C>() && "Entity does not have component attached");
+            return get_component_fast<C>(entity) = C(args...);
         }
 
         inline bool has_component(Entity& entity, ComponentMask component_mask){
+            ECS_ASSERT_VALID_ENTITY(entity);
             return (mask(entity) & component_mask) == component_mask;
         }
 
@@ -1158,13 +1118,13 @@ namespace details{
         }
 
         inline bool valid(Entity& entity){
+            sortFreeList();
             return !binary_search(free_list_.begin(), free_list_.end(), entity.id().index_) &&
             entity.id().index_ < entity_versions_.size() && entity == get(entity.id().index_);
         }
 
         inline void destroy(Entity& entity){
             index_t index = entity.id().index_;
-            if(!valid(entity)) throw exceptions::InvalidEntityException();
             remove_all_components(entity);
             ++entity_versions_[index];
             free_list_.push_back(index);
@@ -1223,17 +1183,11 @@ namespace details{
     public:
         SystemManager(EntityManager& entities) : entities_(&entities){}
 
-        #define ASSERT_SYSTEM(S)                                                            \
-            static_assert(std::is_base_of<BaseSystem, S>::value,                            \
-            "DirivedSystem must inherit System<DirivedSystem>.");
-
         template<typename S, typename ...Args>
         S& create(Args && ... args){
-            ASSERT_SYSTEM(S);
+            ECS_ASSERT_IS_SYSTEM(S);
             //If system exist
-            if(exists<S>()) {
-                throw exceptions::RedundantSystemException();
-            }
+            assert(!exists<S>() && "System already exists");
             systems_.resize(S::family() + 1);
             S* system = new S(std::forward<Args>(args) ...);
             system->manager_ = this;
@@ -1243,10 +1197,8 @@ namespace details{
 
         template<typename S>
         void destroy(){
-            ASSERT_SYSTEM(S);
-            if(!exists<S>()) {
-                throw exceptions::MissingSystemException();
-            }
+            ECS_ASSERT_IS_SYSTEM(S);
+            assert(exists<S>() && "System does not exist");
             delete systems_[S::family()];
             systems_[S::family()] = nullptr;
         }
@@ -1259,7 +1211,7 @@ namespace details{
 
         template<typename S>
         inline bool exists(){
-            ASSERT_SYSTEM(S);
+            ECS_ASSERT_IS_SYSTEM(S);
             return systems_.size() > S::family() && systems_[S::family()] != nullptr;
         }
 

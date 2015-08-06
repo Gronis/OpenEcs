@@ -83,21 +83,17 @@ struct Wheels {
 };
 
 struct Car : EntityAlias<Wheels> {
-    typedef float hej;
 
     Car(float x, float y){
-        set<Wheels>();
+        add<Wheels>();
         drive(x,y);
     }
 
     Car(){
-        set<Wheels>();
+        add<Wheels>();
     }
 
     void drive(float x, float y) {
-        hej h;
-        typedef int hej;
-        hej h2;
         set<Velocity>(x, y);
     }
 
@@ -156,10 +152,10 @@ SCENARIO("Testing ecs framework, unittests"){
                     REQUIRE(has_health_mana_weight_and_height);
                 }
                 THEN("Accessing added components should work"){
-                    REQUIRE_NOTHROW(entity.get<Health>());
-                    REQUIRE_NOTHROW(entity.get<Mana>());
-                    REQUIRE_NOTHROW(entity.get<Weight>());
-                    REQUIRE_NOTHROW(entity.get<Health>());
+                    entity.get<Health>();
+                    entity.get<Mana>();
+                    entity.get<Weight>();
+                    entity.get<Health>();
                 }
                 THEN("Unpack data from added components should work"){
                     REQUIRE(entity.get<Health>().value == 5);
@@ -167,11 +163,14 @@ SCENARIO("Testing ecs framework, unittests"){
                     REQUIRE(entity.get<Height>().value == 15);
                     REQUIRE(entity.get<Weight>().value == 20);
                 }
+                // TODO: Find a way to test assert
+                /*
                 THEN("Accessing other components should not work"){
                     REQUIRE_THROWS(entity.get<Clothes>());
                     REQUIRE_THROWS(entity.get<Hat>());
                     REQUIRE_THROWS(entity.get<Shoes>());
                 }
+                 */
                 THEN("Only one Health component should exist"){
                     REQUIRE(health_component_count == 1);
                 }
@@ -184,6 +183,8 @@ SCENARIO("Testing ecs framework, unittests"){
                         REQUIRE(!entity.has<Health>());
                     }
                 }
+                // TODO: Find a way to test assert
+                /*
                 AND_WHEN("When removing the Health component twice"){
                     entity.remove<Health>();
                     THEN("It should not work"){
@@ -196,6 +197,7 @@ SCENARIO("Testing ecs framework, unittests"){
                         REQUIRE_THROWS(entity.remove<Health>());
                     }
                 }
+                */
                 AND_WHEN("Destroying the entity"){
                     entity.destroy();
                     THEN("No Health component should exist"){
@@ -217,18 +219,19 @@ SCENARIO("Testing ecs framework, unittests"){
                     }
                 }
             }
-            
+            // TODO: Find a way to test assert
+            /*
             WHEN("Adding the same component twice with \"add\" method"){
                 entity.add<Health>(1);
                 THEN("Should not work"){
                     REQUIRE_THROWS(entity.add<Health>(2));
                 }
             }
-            
+            */
             WHEN("Adding the same component twice with \"set\" method"){
                 entity.set<Health>(1);
                 THEN("Should work"){
-                    REQUIRE_NOTHROW(entity.set<Health>(2));
+                    entity.set<Health>(2);
                 }
             }
             WHEN("Entity remains without components"){
@@ -247,12 +250,15 @@ SCENARIO("Testing ecs framework, unittests"){
                     REQUIRE(!entity.valid());
                 }
             }
+            // TODO: Find a way to test assert
+            /*
             WHEN("Destroying entity twice"){
                 entity.destroy();
                 THEN("It should not work"){
                     REQUIRE_THROWS(entity.destroy());
                 }
             }
+             */
             WHEN("Destroying entity once and replace it with a new entity"){
                 entity.destroy();
                 Entity entity2 = entities.create();
@@ -531,12 +537,14 @@ SCENARIO("Testing ecs framework, unittests"){
                 }
             }
             WHEN("Assumeing Entity has Wheels, should work"){
-                REQUIRE_NOTHROW(entity.assume<Wheels>());
                 entity.assume<Wheels>().get<Wheels>();
             }
+            // TODO: Find a way to test assert
+            /*
             WHEN("Assumeing Entity has Hat, should not work"){
                 REQUIRE_THROWS(entity.assume<Hat>());
             }
+            */
             WHEN("Creating 2 new entities and fetching every Car"){
                 entities.create();
                 entities.create();

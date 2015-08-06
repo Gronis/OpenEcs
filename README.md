@@ -59,7 +59,7 @@ entity.add<Health>(10);
 entity.set<Health>(20);
 
 //Add only works when it doesn't already exists.
-entity.add<Health>(10);// <- Exception, component already added
+entity.add<Health>(10);// <- Assert failure, component already added
 ```
 
 ### Accessing Components from entities
@@ -83,7 +83,7 @@ Health health = entity.get<Health>();
 health.value = 3; // <- does not apply any change
 
 ```
-Accessing a component which does not exist on a specified entity, will throw an exception. To check if an entitiy has a specified component, use the "has" function.
+Accessing a component which does not exist on a specified entity, will trigger a runtime assertion. To check if an entitiy has a specified component, use the "has" function.
 
 ```cpp
 Entity entity = entities.create();
@@ -116,7 +116,7 @@ When an entity is destroyed. It is no longer valid, and any action used with it 
 ```cpp
 entity.destroy();
 //Does not work
-entity.add<Health>(0); // <- throws exception, Entity invalid
+entity.add<Health>(0); // <- triggers runtime assertion, Entity invalid
 
 //Check if entity is valid
 bool valid = entity.valid();
@@ -178,8 +178,7 @@ Any new system class must inherit the System class like this:
 //                  v                          v
 class RemoveCorpsesSystem : public System<RemoveCorpsesSystem>{
 public:
-    virtual void update(float time){
-
+    void update(float time) override {
         // Get the entity manager using entities() function
         for(auto entity : entities().with<Health>()){
             if(entity.get<Health>().value <= 0){
@@ -204,13 +203,7 @@ systems.update(deltaTime);
 The systems are updated in the same order as they are added.
 
 ###Error handling
-Any runtime errors should be handled by exceptions inside the ecs::exception namespace. The current exceptions are
-
-* RedundantComponentException - When adding component (using add) when component exists already
-* RedundantSystemException - When adding system when system exists already
-* MissingComponentException - When accessing or removing missing component
-* MissingSystemException - When accessing or removing missing system
-* InvalidEntityException - When using an invalid entity
+Any runtime errors should be handled by static or runtime assertions.
 
 ##Extra feature's
 Aside from the normal usage of bitmasks for Component recognition and storing components in a vector for cache 
@@ -293,8 +286,8 @@ class Actor : public EntityAlias<Health, Name>{
                                      \_____\
 public:                                     \
     Actor(int health, std::string name){     \
-        set<Health>(health);                  \
-        set<Name>(name);                       \
+        add<Health>(health);                  \
+        add<Name>(name);                       \
         //Make sure you set all required components.
         //Missing any required component will result
         //in a runtime error.
@@ -392,7 +385,7 @@ runtime check when we iterate through the list. Why do it again?
 ```cpp  
 for(auto entity : entities.with<Health, Name>()){
     entity.get<Health>(); // <- No runtime check. Fast
-    entity.get<Mana>(); // <- Runtime check required. Slow(er), May throw exception
+    entity.get<Mana>(); // <- Runtime check required. 
 }
 
 ```
