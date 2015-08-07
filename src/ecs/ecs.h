@@ -247,25 +247,47 @@ namespace details{
 
         Property(const T& value) : value(value){}
 
+        inline operator const T&() const{
+            return value;
+        }
+
         inline operator T&(){
             return value;
         }
 
         template<typename E>
-        inline bool operator == (E& rhs) {
+        inline bool operator == (const Property<E>& rhs) {
             return value == rhs.value;
         }
 
-        inline bool operator == (T& rhs) {
+        inline bool operator == (const Property<T>& rhs) {
+            return value == rhs.value;
+        }
+
+        template<typename E>
+        inline bool operator == (const E& rhs) {
+            return value == rhs;
+        }
+
+        inline bool operator == (const T& rhs) {
             return value == rhs;
         }
 
         template<typename E>
-        inline bool operator != (E& rhs) {
+        inline bool operator != (const Property<E>& rhs) {
             return value != rhs.value;
         }
 
-        inline bool operator != (T& rhs) {
+        inline bool operator != (const Property<T>& rhs) {
+            return value != rhs.value;
+        }
+
+        template<typename E>
+        inline bool operator != (const E& rhs) {
+            return value != rhs;
+        }
+
+        inline bool operator != (const T& rhs) {
             return value != rhs;
         }
         T value;

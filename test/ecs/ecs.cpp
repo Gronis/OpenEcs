@@ -89,7 +89,9 @@ struct Car : EntityAlias<Wheels> {
         drive(x,y);
     }
 
-    Car(){}
+    Car(){
+        add<Wheels>();
+    }
 
     void drive(float x, float y) {
         set<Velocity>(x, y);
@@ -116,7 +118,7 @@ struct CountCarSystem : System<CountCarSystem>{
 struct RemoveDeadEntitiesSystem : System<RemoveDeadEntitiesSystem>{
     virtual void update(float time){
         for(auto entity : entities().with<Health>()){
-            if(entity.get<Health>() <= 0){
+            if(entity.get<Health>().value <= 0){
                 entity.destroy();
             }
         }
@@ -339,14 +341,14 @@ SCENARIO("Testing ecs framework, unittests"){
                     int& health = e1.get<Health>();
                     THEN("Changing the value should affect the actual component"){
                         health += 1;
-                        REQUIRE(health == (int)e1.get<Health>());
+                        REQUIRE(health == e1.get<Health>().value);
                     }
                 }
                 AND_WHEN("Accessing Health component as values"){
                     int health = e1.get<Health>();
                     THEN("Changing the value should not affect the actual component"){
                         health += 1;
-                        REQUIRE(health != (int)e1.get<Health>());
+                        REQUIRE(health != e1.get<Health>().value);
                     }
                 }
                 AND_WHEN("Accessing e1s' Health as pointer, and setting this pointer to e4s' different Health"){
