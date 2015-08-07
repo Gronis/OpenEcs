@@ -876,7 +876,7 @@ namespace details{
             ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
             Entity entity = create();
             T* entity_alias = new(&entity) T(std::forward<Args>(args)...);
-            entity_alias->fill_empty();
+            assert(entity.has(T::mask()));
             return *entity_alias;
         }
 

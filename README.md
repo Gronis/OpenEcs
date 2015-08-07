@@ -287,10 +287,10 @@ class Actor : public EntityAlias<Health, Name>{
 public://                                  |
     Actor(int health, std::string name){// |
         add<Health>(health);//             |
-        add<Name>(name);//                 /
-        //If any required components -----´
-        //are not added. They will be added with their
-        //empty constructor "add<Component>();"
+        add<Name>(name);//                 |
+        //Make sure to add any required components.
+        //If any required component is not added,
+        //this will cause a runtime assertion failure
 
         //it is also important to use "add" instead of "set"
         //as "set" assumes that all required components are

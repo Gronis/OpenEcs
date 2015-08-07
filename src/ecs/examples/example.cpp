@@ -39,8 +39,9 @@ struct Name{
 };
 
 struct Spellcaster : public EntityAlias<Name, Health, Mana>{
-    Spellcaster() {} //Adds components automatically
-    Spellcaster(std::string name, int health, int mana){
+    Spellcaster(std::string name = "NoName" ,
+                int health = 0,
+                int mana = 0){
         add<Name>(name);
         add<Health>(health);
         add<Mana>(mana);
