@@ -346,18 +346,6 @@ namespace details{
         class BaseManager;
 
         ///---------------------------------------------------------------------
-        /// Helper class
-        ///---------------------------------------------------------------------
-        class BaseComponent;
-        ///---------------------------------------------------------------------
-        /// Component is a wrapper class around a component instance
-        /// This class is mainly used to give different Components its
-        /// own mask index.
-        ///---------------------------------------------------------------------
-        template<typename T>
-        class Component;
-
-        ///---------------------------------------------------------------------
         /// Helper class,  This is the main class for holding many Component of
         /// a specified type.
         ///---------------------------------------------------------------------
@@ -377,28 +365,6 @@ namespace details{
             virtual ComponentMask mask() = 0;
         };
 
-        class BaseComponent {
-        public:
-            typedef std::size_t Family;
-
-        protected:
-            static Family& family_counter(){ static Family counter = 0; return counter; };
-        private:
-            BaseComponent() = delete;
-        }; //BaseComponent
-
-
-        template <typename C>
-        class Component : public BaseComponent {
-        public:
-            static Family family() {
-                static Family family = family_counter()++;
-                return family;
-            }
-        private:
-            Component() = delete;
-        }; //Component
-
         template<typename C>
         class ComponentManager : public BaseManager, details::NonCopyable{
         public:
@@ -416,7 +382,7 @@ namespace details{
 
             void remove(index_t index){
                 pool_.destroy(index);
-                manager_.mask(index).reset(Component<C>::family());
+                manager_.mask(index).reset(component_index<C>());
             }
 
             inline C& operator[] (index_t index){
@@ -432,14 +398,13 @@ namespace details{
             }
 
             inline ComponentMask mask(){
-                return componentMask<C>();
+                return component_mask<C>();
             }
 
             EntityManager &manager_;
             details::Pool<C> pool_;
 
             friend class EntityManager;
-            friend class Component<C>;
         }; //ComponentManager
 
     public:
@@ -811,11 +776,11 @@ namespace details{
             }
 
             template <typename ...Components_>
-            std::tuple<Component<Components_>...> unpack() {
+            std::tuple<Components_& ...> unpack() {
                 return entity_.unpack<Components_...>();
             }
 
-            std::tuple<Component<Components>...> unpack() {
+            std::tuple<Components& ...> unpack() {
                 return entity_.unpack<Components...>();
             }
 
@@ -824,7 +789,26 @@ namespace details{
 
         private:
             static ComponentMask mask(){
-                return componentMask<Components...>();
+                return component_mask <Components...>();
+            }
+
+            void fill_empty(){
+                if(!entity_.has(mask())){
+                    fill_empty_components<Components...>();
+                }
+            }
+
+            template<typename C>
+            void fill_empty_components(){
+                if(!has<C>()) {
+                    add<C>();
+                }
+            }
+
+            template<typename C, typename C1, typename ...Cs>
+            void fill_empty_components(){
+                fill_empty_components<C>();
+                fill_empty_components<C1, Cs...>();
             }
 
             friend class EntityManager;
@@ -892,18 +876,14 @@ namespace details{
             ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
             Entity entity = create();
             T* entity_alias = new(&entity) T(std::forward<Args>(args)...);
-            assert(entity.has(T::mask()) &&
-                   "Entity should have all required components attached");
+            entity_alias->fill_empty();
             return *entity_alias;
         }
 
         // Access a View of all entities with specified components
         template<typename ...Components>
         View<EntityAlias<Components...>> with(){
-            ComponentMask mask = componentMask<Components...>();
-            // Ensure they exists
-            // TODO: make prettier
-            std::make_tuple(&get_component_manager<Components>()...);
+            ComponentMask mask = component_mask <Components...>();
             return View<EntityAlias<Components...>>(this, mask);
         }
 
@@ -985,47 +965,60 @@ namespace details{
 
         //C1 should not be Entity
         template<typename C>
-        static inline auto componentMask() -> typename
+        static inline auto component_mask() -> typename
         std::enable_if<!std::is_same<C, Entity>::value, ComponentMask>::type{
-            return ComponentMask((1UL << Component<C>::family()));
+            ComponentMask mask = ComponentMask((1UL << component_index<C>()));
+            return mask;
         }
 
         //When C1 is Entity, ignore
         template<typename C>
-        static inline auto componentMask() -> typename
+        static inline auto component_mask() -> typename
         std::enable_if<std::is_same<C, Entity>::value, ComponentMask>::type{
             return ComponentMask(0);
         }
 
-        //recursive function for componentMask creation
+        //recursive function for component_mask creation
         template<typename C1, typename C2, typename ...Cs>
-        static inline auto componentMask() -> typename
-                std::enable_if<!std::is_same<C1, Entity>::value, ComponentMask>::type{
-            return componentMask<C1>() | componentMask<C2, Cs...>();
+        static inline auto component_mask() -> typename
+        std::enable_if<!std::is_same<C1, Entity>::value, ComponentMask>::type{
+            ComponentMask mask = component_mask<C1>() | component_mask<C2, Cs...>();
+            return mask;
+        }
+
+        template<typename C>
+        static size_t& component_index(){
+            static size_t index = component_counter()++;
+            return index;
+        }
+
+        static size_t& component_counter(){
+            static size_t counter = 0;
+            return counter;
         }
 
         template<typename C, typename ...Args>
         ComponentManager<C>& create_component_manager(Args && ... args){
             ComponentManager<C>* ptr = new ComponentManager<C>(std::forward<EntityManager&>(*this), std::forward<Args>(args) ...);
-            component_managers_[Component<C>::family()] = ptr;
+            component_managers_[component_index<C>()] = ptr;
             return *ptr;
         };
 
         template<typename C>
         inline ComponentManager<C>& get_component_manager_fast(){
-            return *reinterpret_cast<ComponentManager<C>*>(component_managers_[Component<C>::family()]);
+            return *reinterpret_cast<ComponentManager<C>*>(component_managers_[component_index<C>()]);
         }
 
         template<typename C>
         inline ComponentManager<C>& get_component_manager(){
-            auto family = Component<C>::family();
-            if(component_managers_.size() <= family){
-                component_managers_.resize(family + 1, nullptr);
+            auto index = component_index<C>();
+            if(component_managers_.size() <= index){
+                component_managers_.resize(index + 1, nullptr);
                 return create_component_manager<C>();
-            } else if(component_managers_[family] == nullptr){
+            } else if(component_managers_[index] == nullptr){
                 return create_component_manager<C>();
             }
-            return *reinterpret_cast<ComponentManager<C>*>(component_managers_[family]);
+            return *reinterpret_cast<ComponentManager<C>*>(component_managers_[index]);
         }
 
         template<typename C>
@@ -1051,7 +1044,7 @@ namespace details{
             ECS_ASSERT_VALID_ENTITY(entity);
             assert(!has_component<C>(entity) && "Entity already has this component attached");
             C& component = get_component_manager<C>().create(entity.id_.index_, std::forward<Args>(args) ...);
-            entity.mask() |= componentMask<C>();
+            entity.mask().set(component_index<C>());
             return component;
         }
 
@@ -1109,12 +1102,12 @@ namespace details{
 
         template<typename ...Components>
         inline bool has_component(Entity& entity){
-            return has_component(entity, componentMask<Components...>());
+            return has_component(entity, component_mask<Components...>());
         }
 
         template<typename ...Components>
         inline bool has_component(index_t index){
-            return has_component(index, componentMask<Components...>());
+            return has_component(index, component_mask<Components...>());
         }
 
         inline bool valid(Entity& entity){

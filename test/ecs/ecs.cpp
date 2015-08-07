@@ -45,8 +45,8 @@ struct Health : Property<int> {
 };
 
 
-struct Mana : Property<int> {
-    Mana(int value) {
+struct Mana : Property<float> {
+    Mana(float value) {
         this->value = value;
     }
 };
@@ -89,9 +89,7 @@ struct Car : EntityAlias<Wheels> {
         drive(x,y);
     }
 
-    Car(){
-        add<Wheels>();
-    }
+    Car(){}
 
     void drive(float x, float y) {
         set<Velocity>(x, y);

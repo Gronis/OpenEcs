@@ -282,15 +282,19 @@ like this:
 
 ```cpp
 class Actor : public EntityAlias<Health, Name>{
-                                    ^     ^
-                                     \_____\
-public:                                     \
-    Actor(int health, std::string name){     \
-        add<Health>(health);                  \
-        add<Name>(name);                       \
-        //Make sure you set all required components.
-        //Missing any required component will result
-        //in a runtime error.
+//                                  ^      ^
+//                                   \_____|
+public://                                  |
+    Actor(int health, std::string name){// |
+        add<Health>(health);//             |
+        add<Name>(name);//                 /
+        //If any required components -----´
+        //are not added. They will be added with their
+        //empty constructor "add<Component>();"
+
+        //it is also important to use "add" instead of "set"
+        //as "set" assumes that all required components are
+        //already set for this entity.
     }
 };
 ```
@@ -409,22 +413,25 @@ health and mana.
 using namespace ecs;
 
 struct Health{
+    Health() : Health(0) {}
     Health(int value) : value(value){};
     int value;
 };
 
 struct Mana{
+    Mana() : Mana(0) {}
     Mana(int value) : value(value){};
     int value;
 };
 
 struct Name{
+    Name() : Name("NoName") {}
     Name(std::string value) : value(value){};
     std::string value;
 };
 
 struct Spellcaster : public EntityAlias<Name, Health, Mana>{
-    Spellcaster() : Spellcaster("NoName", 0, 0){ };
+    Spellcaster() {} //Adds components automatically
     Spellcaster(std::string name, int health, int mana){
         add<Name>(name);
         add<Health>(health);
@@ -438,19 +445,30 @@ struct Spellcaster : public EntityAlias<Name, Health, Mana>{
         return get<Health>().value > 0;
     }
     void castSpell(Spellcaster& target){
-        --get<Mana>().value;
-        --target.get<Health>().value;
+        if(!isOom()){
+            --get<Mana>().value;
+            --target.get<Health>().value;
+        }
     }
 };
 
 class RemoveCorpsesSystem : public System<RemoveCorpsesSystem>{
 public:
     void update(float time) override {
-        for(auto entity : entities().with<Health>()){
-            if(entity.get<Health>().value <= 0){
-                entity.destroy();
+        //Method 1
+        //Any health entity
+        entities().with([](Health& health, Entity entity){
+           if(health.value <= 0){
+               entity.destroy();
+           }
+        });
+        //Method 2
+        //Any spellcaster that is dead
+        entities().fetch_every([](Spellcaster& spellcaster){
+            if(!spellcaster.isAlive()){
+                spellcaster.destroy();
             }
-        }
+        });
     }
 };
 
@@ -502,7 +520,6 @@ int main(){
     Game game;
     game.run();
 }
-
 ```
 
 Output:
