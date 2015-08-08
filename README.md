@@ -412,19 +412,17 @@ health and mana.
 
 using namespace ecs;
 
-struct Health{
-    Health(int value) : value(value){};
-    int value;
+//Using property
+struct Health: Property<int>{
+    Health(int value) : Property<int>(value){};
 };
 
-struct Mana{
-    Mana(int value) : value(value){};
-    int value;
+struct Mana : Property<int>{
+    Mana(int value) : Property<int>(value){};
 };
 
-struct Name{
-    Name(std::string value) : value(value){};
-    std::string value;
+struct Name : Property<std::string>{
+    Name(std::string value) : Property<std::string>(value){};
 };
 
 struct Spellcaster : public EntityAlias<Name, Health, Mana>{
@@ -434,16 +432,16 @@ struct Spellcaster : public EntityAlias<Name, Health, Mana>{
         add<Mana>(mana);
     }
     bool isOom(){
-        return get<Mana>().value == 0;
+        return get<Mana>() == 0;// <- override == operator
     }
 
     bool isAlive(){
-        return get<Health>().value > 0;
+        return get<Health>() > 0;
     }
     void castSpell(Spellcaster& target){
         if(!isOom()){
-            --get<Mana>().value;
-            --target.get<Health>().value;
+            --get<Mana>();
+            --target.get<Health>();
         }
     }
 };
@@ -454,7 +452,7 @@ public:
         //Method 1
         //Any health entity
         entities().with([](Health& health, Entity entity){
-           if(health.value <= 0){
+           if(health <= 0){
                entity.destroy();
            }
         });
@@ -501,9 +499,9 @@ public:
         entities.create<Spellcaster>("Bob", 12, 8);
         while(entities.count() > 1) systems.update(1);
         entities.with([] (Name& name, Health& health, Mana& mana){
-            std::cout << name.value << " won!" << std::endl;
-            std::cout << "Health: " << health.value << std::endl;
-            std::cout << "Mana:   " << mana.value << std::endl;
+            std::cout << name << " won!" << std::endl;
+            std::cout << "Health: " << health << std::endl;
+            std::cout << "Mana:   " << mana << std::endl;
         });
     }
 

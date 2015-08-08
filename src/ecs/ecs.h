@@ -379,6 +379,7 @@ namespace details{
         inline T operator << (const E& rhs) {
             return value << rhs;
         }
+
     public:
         T value;
     };
@@ -1438,3 +1439,15 @@ namespace details{
     using EntityAlias = EntityManager::EntityAlias<Components...>;
     using Entity = EntityManager::Entity;
 } // namespace ecs
+
+namespace std{
+    template<typename T>
+    ostream& operator<<(ostream& os, const ecs::Property<T>& obj) {
+        return os << obj.value;
+    }
+
+    template<typename T>
+    istream& operator>>(istream& is, ecs::Property<T>& obj) {
+        return is >> obj.value;
+    }
+} //namespace std
