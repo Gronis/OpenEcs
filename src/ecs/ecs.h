@@ -1,7 +1,6 @@
 #pragma once
 
 /// --------------------------------------------------------------------------
-/// OpenEcs - A fast, typesafe, C++11, configurable, header only, ECS
 /// Copyright (C) 2015  Robin Grönberg
 ///
 /// This program is free software: you can redistribute it and/or modify

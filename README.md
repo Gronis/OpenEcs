@@ -1,4 +1,4 @@
-#OpenEcs - A fast, typesafe, C++11, configurable, header only, Entity Component System
+#OpenEcs - A fast, clean, typesafe, C++11, header only, Entity Component System
 
 ##What is OpenEcs?
 Open Ecs is an Entity Component System that uses metaprogramming, cache coherency, and other useful tricks to maximize 
@@ -6,8 +6,8 @@ performance and configurability. It is written in c++11 without further dependen
 
 NOTE: OpenEcs is still in beta and usage with the library might change. If you need a complete ECS library for a serious
 project, I suggest looking further. I want more stuff like custom component allocators and perhaps a compile time 
-configurable EntityManager and SystemManager. Some way to handle events might be useful. to include.
-Let me know what you think and what is missing, I hope you enjoy using OpenEcs.
+configurable EntityManager and SystemManager. Some way to handle events might be useful to include.
+Though, I don't want to bloat the lib with too much features. Let me know what you think and what is missing, I hope you enjoy using OpenEcs.
 
 ##Why OpenEcs?
 I authored OpenEcs after using other ECS libraries. The main reason for this was that I wanted to write my own, and it 
@@ -38,7 +38,7 @@ vector<Entity> new_entities = entities.create(100);
 ```
 
 ###Adding Components to entities
-Adding components to entities is easy. Bur first we must define a Component. A Component can be any class or struct.
+Adding components to entities is easy. But first we must define a Component. A Component can be any class or struct.
 
 ```cpp
 
@@ -58,7 +58,7 @@ entity.add<Health>(10);
 //The set function can be used even if health was added before.
 entity.set<Health>(20);
 
-//Add only works when it doesn't already exists.
+//ERROR! Add only works when it doesn't already exists.
 entity.add<Health>(10);// <- Assert failure, component already added
 ```
 
@@ -125,7 +125,7 @@ bool valid = entity.valid();
 To track if an entity is valid. OpenEcs accociates each entity with a version when accessed from the EntityManager. Whenever an entity is destoyed, the version for that Entity changes, and all entities with the old versions are invalid, as they no longer exists.
 
 ### Iterating through the EntityManager
-To access components with certain components. There is a "with" function that looks like this
+To access entities with certain components. There is a "with" function that looks like this
 
 ```cpp
 EntityManager entities;
@@ -294,12 +294,13 @@ public://                                  |
 
         //it is also important to use "add" instead of "set"
         //as "set" assumes that all required components are
-        //already set for this entity.
+        //already set for this entity (Since they are
+        //required).
     }
 };
 ```
 
-Once we have the Entity AliasConstructor, we can create
+Once we have the EntityAlias constructor, we can create
 an entity using the "create" function.
 
 ```
@@ -324,7 +325,7 @@ bool health_equals_mana =
 bool health_equals_mana = 
     entity.get<Health>().value == entity.get<Mana>().value;
 ```
-However, defining operators for each component can be very anoying and time consume. In most cases (like the example above) almost unneccecary. If the component only has one property. In the case of Health in this example. There is a class called Property<T> which overrides useful operators. The Component class may extend this class to inherit some basic operators.
+However, defining operators for each component can be very anoying and time consume. In most cases (like the example above) almost unneccecary. If the component only has one property. In the case of Health in this example. There is a class called Property\<T\> which overrides useful operators. The Component class may extend this class to inherit some basic operators.
 
 ```cpp
 struct Health : Property<int>{
@@ -349,7 +350,7 @@ if(entity.get<Health>().value > 10){
     
 }
 ```
-NOTE: Remember that any class can be a component, and that it is optional to use Property<T>, as overriding operators is not always desired. For those who does not what to use overridden operators, leave out the Property<T> class.
+NOTE: Remember that any class can be a component, and that it is optional to use Property\<T\>, as overriding operators is not always desired. For those who does not what to use overridden operators, leave out the Property\<T\> class.
 
 ###Performance
 
@@ -380,11 +381,10 @@ for(auto entity : entities.with<Health, Name>()){
 }
 
 ```
-Why should I do this? Because when you use the function get<Health> on the Entity object,
-We do not know that the entity has the Health component, and we do a runtime check each loop.
-If you are using EntityAlias<Health,Name>, the compiler assumes that the entity has Health
-and Name components, and bypasses this check when accessing the component. We already do this
-runtime check when we iterate through the list. Why do it again?
+Why should I do this? Because when you use the function "get\<Health\>" on the Entity object,
+we need to perform some runtime checks. If you are using EntityAlias\<Health,Name\>, the compiler 
+assumes that the entity has Health and Name components, and bypasses this check when accessing 
+the component. We already do this runtime check when we iterate through the list. Why do it again?
 
 ```cpp  
 for(auto entity : entities.with<Health, Name>()){
@@ -399,6 +399,8 @@ are good to go!
 
 ```cpp  
 entities.with([](Health& health, Name& name){ });
+//or
+entities.fetch_every([](Actor actor){ });
 
 ```
 
