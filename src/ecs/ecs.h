@@ -35,7 +35,7 @@
 #define ECS_ASSERT_VALID_ENTITY(E)                                                          \
         assert(valid(E) && "Entity is no longer valid");                                    \
 
-#define ECS_ASSERT_IS_SYSTEM(S)                                                                \
+#define ECS_ASSERT_IS_SYSTEM(S)                                                             \
             static_assert(std::is_base_of<BaseSystem, S>::value,                            \
             "DirivedSystem must inherit System<DirivedSystem>.");                           \
 
@@ -45,7 +45,7 @@
 namespace ecs{
 
     /// Type used for entity index
-    typedef u_int32_t index_t;
+    typedef uint32_t index_t;
 
     /// Type used for entity version
     typedef uint8_t version_t;
@@ -421,7 +421,7 @@ namespace details{
 
 
     ///---------------------------------------------------------------------
-    /// Determinse whether a class overrides the ++ and -- operators
+    /// Determine whether a class overrides the ++ and -- operators
     ///---------------------------------------------------------------------
     template <typename T>
     class has_integer_operators
@@ -435,8 +435,6 @@ namespace details{
         enum { value = sizeof(pp<T>(0)) == sizeof(char)  &&
                        sizeof(mm<T>(0)) == sizeof(char)};
     };
-
-
 
 
     ///---------------------------------------------------------------------
@@ -1191,8 +1189,14 @@ namespace details{
         }
 
         template<typename C>
-        static size_t& component_index(){
-            static size_t index = component_counter()++;
+        static size_t component_index(){
+            static size_t index = inc_component_counter();
+            return index;
+        }
+
+        static size_t inc_component_counter(){
+            size_t index = component_counter()++;
+            assert(index < ECS_MAX_NUM_OF_COMPONENTS && "maximum number of components exceeded.");
             return index;
         }
 
@@ -1203,7 +1207,8 @@ namespace details{
 
         template<typename C, typename ...Args>
         ComponentManager<C>& create_component_manager(Args && ... args){
-            ComponentManager<C>* ptr = new ComponentManager<C>(std::forward<EntityManager&>(*this), std::forward<Args>(args) ...);
+            ComponentManager<C>* ptr = new ComponentManager<C>(std::forward<EntityManager&>(*this),
+                                                               std::forward<Args>(args) ...);
             component_managers_[component_index<C>()] = ptr;
             return *ptr;
         };
