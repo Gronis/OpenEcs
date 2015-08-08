@@ -110,8 +110,6 @@ namespace details{
     template<typename T, typename Tail, typename... Ts>
     struct is_type<T, Tail, Ts...> : is_type<T, Ts...>::type {};
 
-
-
     ///---------------------------------------------------------------------
     /// Any class that should not be able to copy itself inherit this class
     ///---------------------------------------------------------------------
@@ -226,26 +224,33 @@ namespace details{
             return get(index);
         }
     };
-} // namespace details
 
     ///---------------------------------------------------------------------
-    /// A Property is a sample Component with only one property of any type
+    /// A StandardProperty is a helper class for Component with only one
+    /// property of any type
     ///---------------------------------------------------------------------
     ///
-    /// A Property is a sample Component with only one property of any type.
+    /// A StandardProperty is a helper class for Component with only one
+    /// property of any type.
+    ///
     /// it implements standard constructors, type conversations and
-    /// operators which might be useful.
+    /// operators:
     ///
-    /// TODO: Add more operators
+    ///     ==, !=
+    ///     >=, <=, <, >
+    ///     +=, -=, *=, /=, %=
+    ///     &=, |=, ^=
+    ///     +, -, *; /, %
+    ///     &, |, ^, ~
+    ///     >>, <<
     ///
+    /// TODO: Add more operators?
     ///---------------------------------------------------------------------
     template<typename T>
-    struct Property{
-        Property(){}
+    struct StandardProperty{
+        StandardProperty(){}
 
-        Property(const Property<T>& rhs) : Property(rhs.value){}
-
-        Property(const T& value) : value(value){}
+        StandardProperty(const T& value) : value(value){}
 
         inline operator const T&() const{
             return value;
@@ -256,42 +261,219 @@ namespace details{
         }
 
         template<typename E>
-        inline bool operator == (const Property<E>& rhs) {
-            return value == rhs.value;
-        }
-
-        inline bool operator == (const Property<T>& rhs) {
-            return value == rhs.value;
-        }
-
-        template<typename E>
-        inline bool operator == (const E& rhs) {
-            return value == rhs;
-        }
-
-        inline bool operator == (const T& rhs) {
+        inline bool operator == (const E& rhs) const{
             return value == rhs;
         }
 
         template<typename E>
-        inline bool operator != (const Property<E>& rhs) {
-            return value != rhs.value;
-        }
-
-        inline bool operator != (const Property<T>& rhs) {
-            return value != rhs.value;
+        inline bool operator != (const E& rhs) const{
+            return value != rhs;
         }
 
         template<typename E>
-        inline bool operator != (const E& rhs) {
-            return value != rhs;
+        inline bool operator >= (const E& rhs) const{
+            return value >= rhs;
         }
 
-        inline bool operator != (const T& rhs) {
-            return value != rhs;
+        template<typename E>
+        inline bool operator > (const E& rhs) const{
+            return value > rhs;
         }
+
+        template<typename E>
+        inline bool operator <= (const E& rhs) const{
+            return value <= rhs;
+        }
+
+        template<typename E>
+        inline bool operator < (const E& rhs) const{
+            return value < rhs;
+        }
+
+        template<typename E>
+        inline T& operator += (const E& rhs) {
+            return value += rhs;
+        }
+
+        template<typename E>
+        inline T& operator -= (const E& rhs) {
+            return value -= rhs;
+        }
+
+        template<typename E>
+        inline T& operator *= (const E& rhs) {
+            return value *= rhs;
+        }
+
+        template<typename E>
+        inline T& operator /= (const E& rhs) {
+            return value /= rhs;
+        }
+
+        template<typename E>
+        inline T& operator %= (const E& rhs) {
+            return value %= rhs;
+        }
+
+        template<typename E>
+        inline T& operator &= (const E& rhs) {
+            return value &= rhs;
+        }
+
+        template<typename E>
+        inline T& operator |= (const E& rhs) {
+            return value |= rhs;
+        }
+
+        template<typename E>
+        inline T& operator ^= (const E& rhs) {
+            return value ^= rhs;
+        }
+
+        template<typename E>
+        inline T operator + (const E& rhs) {
+            return value + rhs;
+        }
+
+        template<typename E>
+        inline T operator - (const E& rhs) {
+            return value - rhs;
+        }
+
+        template<typename E>
+        inline T operator * (const E& rhs) {
+            return value * rhs;
+        }
+
+        template<typename E>
+        inline T operator / (const E& rhs) {
+            return value / rhs;
+        }
+
+        template<typename E>
+        inline T operator & (const E& rhs) {
+            return value & rhs;
+        }
+
+        template<typename E>
+        inline T operator | (const E& rhs) {
+            return value | rhs;
+        }
+
+        template<typename E>
+        inline T operator ^ (const E& rhs) {
+            return value ^ rhs;
+        }
+
+        template<typename E>
+        inline T operator ~ () {
+            return ~value;
+        }
+
+        template<typename E>
+        inline T operator >> (const E& rhs) {
+            return value >> rhs;
+        }
+
+        template<typename E>
+        inline T operator << (const E& rhs) {
+            return value << rhs;
+        }
+    public:
         T value;
     };
+
+    ///---------------------------------------------------------------------
+    /// A IntegerProperty is a helper class for Component with only one
+    /// property of any type.
+    ///
+    /// it implements standard operators:  ++  --
+    ///---------------------------------------------------------------------
+    template<typename T>
+    struct IntegerProperty : StandardProperty<T> {
+        IntegerProperty(){}
+
+        IntegerProperty(const T& value) : StandardProperty<T>(value){}
+
+        inline T& operator -- () {
+            --this->value;
+            return this->value;
+        }
+
+        inline T operator -- (int) {
+            T copy = *this;
+            operator--();
+            return copy;
+        }
+
+        inline T& operator ++ () {
+            ++this->value;
+            return this->value;
+        }
+
+        inline T operator ++ (int) {
+            T copy = *this;
+            operator++();
+            return copy;
+        }
+    };
+
+
+
+    ///---------------------------------------------------------------------
+    /// Determinse whether a class overrides the ++ and -- operators
+    ///---------------------------------------------------------------------
+    template <typename T>
+    class has_integer_operators
+    {
+        template <typename C> static char pp(decltype(&C::operator++)) ;
+        template <typename C> static long pp(...);
+        template <typename C> static char mm( decltype(&C::operator--) ) ;
+        template <typename C> static long mm(...);
+
+    public:
+        enum { value = sizeof(pp<T>(0)) == sizeof(char)  &&
+                       sizeof(mm<T>(0)) == sizeof(char)};
+    };
+
+
+
+
+    ///---------------------------------------------------------------------
+    /// BaseProperty
+    ///
+    /// First template argument is property type. Second argument is if
+    /// type does implement ++i i++ --i i-- operators.
+    /// Use has_integer_operators to determine if this class should be used.
+    ///---------------------------------------------------------------------
+    template<typename T, bool>
+    struct BaseProperty;
+
+    template<typename T>
+    struct BaseProperty<T, false> : details::StandardProperty<T> {
+        BaseProperty(){}
+        BaseProperty(const T& value) : details::StandardProperty<T>(value){}
+    };
+
+    template<typename T>
+    struct BaseProperty<T, true> : details::IntegerProperty<T> {
+        BaseProperty(){}
+        BaseProperty(const T& value) : details::IntegerProperty<T>(value){}
+    };
+
+} // namespace details
+
+    ///---------------------------------------------------------------------
+    /// A Property is a sample Component with only one property of any type
+    ///---------------------------------------------------------------------
+    ///
+    /// A Property is a sample Component with only one property of any type.
+    /// it implements standard constructors, type conversations and
+    /// operators which might be useful.
+    ///
+    ///---------------------------------------------------------------------
+    template<typename T>
+    using Property = details::BaseProperty<T, details::has_integer_operators<T>::value>;
 
     ///---------------------------------------------------------------------
     /// This is the main class for holding all Entities and Components

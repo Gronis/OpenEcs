@@ -22,20 +22,18 @@
 
 #include "ecs/ecs.h"
 
-class e;
-
 using namespace ecs;
 
 namespace {
 
 int health_component_count;
 
-struct Health : Property<int> {
-    Health(int value) : Property<int>(value) {
+struct Health : Property<short> {
+    Health(short value) : Property<short>(value) {
         health_component_count++;
     }
 
-    inline Health &operator=(const int &value) {
+    inline Health &operator=(const short &value) {
         health_component_count++;
         this->value = value;
         return *this;
@@ -74,7 +72,6 @@ struct Name : Property<std::string> {
 
 struct Velocity {
     Velocity(float x, float y) : x(x), y(y) { }
-
     float x, y;
 };
 
@@ -84,8 +81,7 @@ struct Wheels {
 
 struct Car : EntityAlias<Wheels> {
 
-    Car(float x, float y){
-        add<Wheels>();
+    Car(float x, float y) : Car(){
         drive(x,y);
     }
 
@@ -118,7 +114,7 @@ struct CountCarSystem : System<CountCarSystem>{
 struct RemoveDeadEntitiesSystem : System<RemoveDeadEntitiesSystem>{
     virtual void update(float time){
         for(auto entity : entities().with<Health>()){
-            if(entity.get<Health>().value <= 0){
+            if(entity.get<Health>() <= 0){
                 entity.destroy();
             }
         }
@@ -338,17 +334,17 @@ SCENARIO("Testing ecs framework, unittests"){
                     }
                 }
                 AND_WHEN("Accessing Health component as references"){
-                    int& health = e1.get<Health>();
+                    short& health = e1.get<Health>();
                     THEN("Changing the value should affect the actual component"){
                         health += 1;
-                        REQUIRE(health == e1.get<Health>().value);
+                        REQUIRE(health == (int)e1.get<Health>());
                     }
                 }
                 AND_WHEN("Accessing Health component as values"){
                     int health = e1.get<Health>();
                     THEN("Changing the value should not affect the actual component"){
                         health += 1;
-                        REQUIRE(health != e1.get<Health>().value);
+                        REQUIRE(health != (int)e1.get<Health>());
                     }
                 }
                 AND_WHEN("Accessing e1s' Health as pointer, and setting this pointer to e4s' different Health"){
@@ -380,105 +376,105 @@ SCENARIO("Testing ecs framework, unittests"){
             }
         }
         // Testing component operators
-        GIVEN("An Entity with 0 Health and 10 Mana") {
+        GIVEN("An Entity with 2 Health and 10 Mana") {
             Entity entity = entities.create();
-            entity.add<Health>(0);
+            entity.add<Health>(2);
             entity.add<Mana>(10);
             WHEN("Adding 2 Health with +=") {
                 entity.get<Health>() += 2;
-                THEN("Health should be 2") {
-                    REQUIRE(entity.get<Health>() == 2);
+                THEN("Health should be 4") {
+                    REQUIRE(entity.get<Health>() == 4);
                 }
                 THEN("Health should be > 1") {
                     REQUIRE(entity.get<Health>() > 1);
                 }
-                AND_WHEN("Multiplying Health with 2 using *=") {
-                    entity.get<Health>() *= 2;
-                    THEN("Health should be 4") {
-                        REQUIRE(entity.get<Health>() == 4);
-                    }
+            }
+            WHEN("Multiplying Health with 2 using *=") {
+                entity.get<Health>() *= 2;
+                THEN("Health should be 4") {
+                    REQUIRE(entity.get<Health>() == 4);
                 }
-                AND_WHEN("Multiplying Health with 2 using [health = health * 2]") {
-                    entity.get<Health>() = entity.get<Health>() * 2;
-                    THEN("Health should be 4") {
-                        REQUIRE(entity.get<Health>() == 4);
-                    }
+            }
+            WHEN("Multiplying Health with 2 using [health = health * 2]") {
+                entity.get<Health>() = entity.get<Health>() * 2;
+                THEN("Health should be 4") {
+                    REQUIRE(entity.get<Health>() == 4);
                 }
-                AND_WHEN("Multiplying Health with 2 to an int variable") {
-                    int health = entity.get<Health>() * 2;
-                    THEN("Health should still be 2 and variable should be 4") {
-                        REQUIRE(entity.get<Health>() == 2);
-                        REQUIRE(health == 4);
-                    }
-                }
-                AND_WHEN("Multiplying Health with 2 using *=") {
-                    entity.get<Health>() *= 2;
-                    THEN("Health should be 4") {
-                        REQUIRE(entity.get<Health>() == 4);
-                    }
+            }
+            WHEN("Multiplying Health with 2 to an int variable") {
+                int health = entity.get<Health>() * 2;
+                THEN("Health should still be 2 and variable should be 4") {
+                    REQUIRE(entity.get<Health>() == 2);
+                    REQUIRE(health == 4);
                 }
             }
             WHEN("Adding 2 Health with [health = health + 2]") {
                 entity.get<Health>() = entity.get<Health>() + 2;
-                THEN("Health should be 2") {
-                    REQUIRE(entity.get<Health>() == 2);
+                THEN("Health should be 4") {
+                    REQUIRE(entity.get<Health>() == 4);
                 }
             }
             WHEN("Adding 2 Health to an int variable") {
                 int health = entity.get<Health>() + 2;
                 THEN("Health should still be 0 and variable should be 2") {
-                    REQUIRE(entity.get<Health>() == 0);
-                    REQUIRE(health == 2);
+                    REQUIRE(entity.get<Health>() == 2);
+                    REQUIRE(health == 4);
+                }
+            }
+            WHEN("Multiplying Health with 2 using *=") {
+                entity.get<Health>() *= 2;
+                THEN("Health should be 4") {
+                    REQUIRE(entity.get<Health>() == 4);
                 }
             }
             WHEN("Subtracting 2 Health with -=") {
                 entity.get<Health>() -= 2;
-                THEN("Health should be -2") {
-                    REQUIRE(entity.get<Health>() == -2);
+                THEN("Health should be 0") {
+                    REQUIRE(entity.get<Health>() == 0);
                 }
                 THEN("Health should be < -1") {
-                    REQUIRE(entity.get<Health>() < -1);
+                    REQUIRE(entity.get<Health>() < 1);
                 }
-                AND_WHEN("Dividing Health with 2 using /=") {
-                    entity.get<Health>() /= 2;
-                    THEN("Health should be -1") {
-                        REQUIRE(entity.get<Health>() == -1);
-                    }
+            }
+            WHEN("Dividing Health with 2 using /=") {
+                entity.get<Health>() /= 2;
+                THEN("Health should be 1") {
+                    REQUIRE(entity.get<Health>() == 1);
                 }
-                AND_WHEN("Dividing Health with 2 using [health = health * 2]") {
-                    entity.get<Health>() = entity.get<Health>() / 2;
-                    THEN("Health should be -1") {
-                        REQUIRE(entity.get<Health>() == -1);
-                    }
+            }
+            WHEN("Dividing Health with 2 using [health = health * 2]") {
+                entity.get<Health>() = entity.get<Health>() / 2;
+                THEN("Health should be 1") {
+                    REQUIRE(entity.get<Health>() == 1);
                 }
-                AND_WHEN("Dividing Health with 2 to an int variable") {
-                    int health = entity.get<Health>() / 2;
-                    THEN("Health should still be -2 and variable should be -1") {
-                        REQUIRE(entity.get<Health>() == -2);
-                        REQUIRE(health == -1);
-                    }
+            }
+            WHEN("Dividing Health with 2 to an int variable") {
+                int health = entity.get<Health>() / 2;
+                THEN("Health should still be 2 and variable should be 1") {
+                    REQUIRE(entity.get<Health>() == 2);
+                    REQUIRE(health == 1);
                 }
-                AND_WHEN("Dividing Health with 2 using /=") {
-                    entity.get<Health>() /= 2;
-                    THEN("Health should be -1") {
-                        REQUIRE(entity.get<Health>() == -1);
-                    }
+            }
+            AND_WHEN("Dividing Health with 2 using /=") {
+                entity.get<Health>() /= 2;
+                THEN("Health should be 1") {
+                    REQUIRE(entity.get<Health>() == 1);
                 }
             }
             WHEN("Subtracting 2 Health with [health = health - 2]") {
                 entity.get<Health>() = entity.get<Health>() - 2;
-                THEN("Health should be -2") {
-                    REQUIRE(entity.get<Health>() == -2);
+                THEN("Health should be 0") {
+                    REQUIRE(entity.get<Health>() == 0);
                 }
             }
             WHEN("Subtracting 2 Health to an int variable") {
                 int health = entity.get<Health>() - 2;
                 THEN("Health should still be 0 and variable should be -2") {
-                    REQUIRE(entity.get<Health>() == 0);
-                    REQUIRE(health == -2);
+                    REQUIRE(entity.get<Health>() == 2);
+                    REQUIRE(health == 0);
                 }
             }
-            WHEN("Setting getHealth to a value") {
+            WHEN("Setting Health to a value") {
                 entity.get<Health>() = 3;
                 THEN("Health should be that value") {
                     REQUIRE(entity.get<Health>() == 3);
@@ -487,25 +483,25 @@ SCENARIO("Testing ecs framework, unittests"){
             WHEN("Adding health with ++e.get<Health>()") {
                 int health = ++entity.get<Health>();
                 THEN("returned value should be new value") {
-                    REQUIRE(health == 1);
+                    REQUIRE(health == 3);
                 }
             }
             WHEN("Adding health with e.get<Health>()++") {
                 int health = entity.get<Health>()++;
                 THEN("Returned value should be old value") {
-                    REQUIRE(health == 0);
+                    REQUIRE(health == 2);
                 }
             }
             WHEN("Subtracting health with --e.get<Health>()") {
                 int health = --entity.get<Health>();
                 THEN("returned value should be new value") {
-                    REQUIRE(health == -1);
+                    REQUIRE(health == 1);
                 }
             }
             WHEN("Subtracting health with e.get<Health>()--") {
                 int health = entity.get<Health>()--;
                 THEN("Returned value should be old value") {
-                    REQUIRE(health == 0);
+                    REQUIRE(health == 2);
                 }
             }
             WHEN("Setting its Health to the same level as Mana"){

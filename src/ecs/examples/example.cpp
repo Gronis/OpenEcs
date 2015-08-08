@@ -20,34 +20,32 @@
 
 using namespace ecs;
 
+//Not using Property
 struct Health{
-    Health() : Health(0) {}
     Health(int value) : value(value){};
     int value;
 };
-
-struct Mana{
-    Mana() : Mana(0) {}
-    Mana(int value) : value(value){};
+//Using property
+struct Mana : Property<int>{
+    Mana(int value){
+        this->value = value;
+    };
     int value;
 };
 
 struct Name{
-    Name() : Name("NoName") {}
     Name(std::string value) : value(value){};
     std::string value;
 };
 
 struct Spellcaster : public EntityAlias<Name, Health, Mana>{
-    Spellcaster(std::string name = "NoName" ,
-                int health = 0,
-                int mana = 0){
+    Spellcaster(std::string name = "NoName" , int health = 0, int mana = 0){
         add<Name>(name);
         add<Health>(health);
         add<Mana>(mana);
     }
     bool isOom(){
-        return get<Mana>().value == 0;
+        return get<Mana>() == 0;// <- override == operator
     }
 
     bool isAlive(){
@@ -55,7 +53,7 @@ struct Spellcaster : public EntityAlias<Name, Health, Mana>{
     }
     void castSpell(Spellcaster& target){
         if(!isOom()){
-            --get<Mana>().value;
+            --get<Mana>();
             --target.get<Health>().value;
         }
     }

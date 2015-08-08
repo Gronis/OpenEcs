@@ -413,26 +413,22 @@ health and mana.
 using namespace ecs;
 
 struct Health{
-    Health() : Health(0) {}
     Health(int value) : value(value){};
     int value;
 };
 
 struct Mana{
-    Mana() : Mana(0) {}
     Mana(int value) : value(value){};
     int value;
 };
 
 struct Name{
-    Name() : Name("NoName") {}
     Name(std::string value) : value(value){};
     std::string value;
 };
 
 struct Spellcaster : public EntityAlias<Name, Health, Mana>{
-    Spellcaster() {} //Adds components automatically
-    Spellcaster(std::string name, int health, int mana){
+    Spellcaster(std::string name = "NoName" , int health = 0, int mana = 0){
         add<Name>(name);
         add<Health>(health);
         add<Mana>(mana);
