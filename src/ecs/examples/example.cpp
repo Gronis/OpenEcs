@@ -53,7 +53,7 @@ struct Spellcaster : public EntityAlias<Name, Health, Mana>{
     }
 };
 
-class RemoveCorpsesSystem : public System<RemoveCorpsesSystem>{
+class RemoveCorpsesSystem : public System{
 public:
     void update(float time) override {
         //Method 1
@@ -73,7 +73,7 @@ public:
     }
 };
 
-class CastSpellSystem : public System<CastSpellSystem>{
+class CastSpellSystem : public System{
 public:
     void update(float time) override {
         entities().fetch_every([&] (Spellcaster& spellcaster1){
@@ -86,7 +86,7 @@ public:
     }
 };
 
-class GiveManaSystem : public System<GiveManaSystem>{
+class GiveManaSystem : public System{
 public:
     void update(float time) override {
         entities().fetch_every([] (Spellcaster& spellcaster){
@@ -99,9 +99,9 @@ class Game{
 public:
     Game() : systems(entities) {}
     void run(){
-        systems.create<CastSpellSystem>();
-        systems.create<GiveManaSystem>();
-        systems.create<RemoveCorpsesSystem>();
+        systems.add<CastSpellSystem>();
+        systems.add<GiveManaSystem>();
+        systems.add<RemoveCorpsesSystem>();
         entities.create<Spellcaster>("Alice", 8, 12);
         entities.create<Spellcaster>("Bob", 12, 8);
         while(entities.count() > 1) systems.update(1);

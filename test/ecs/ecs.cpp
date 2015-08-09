@@ -99,7 +99,7 @@ struct Car : EntityAlias<Wheels> {
     }
 };
 
-struct CountCarSystem : System<CountCarSystem>{
+struct CountCarSystem : System{
     int count = 0;
 
     virtual void update(float time){
@@ -110,7 +110,7 @@ struct CountCarSystem : System<CountCarSystem>{
     }
 };
 
-struct RemoveDeadEntitiesSystem : System<RemoveDeadEntitiesSystem>{
+struct RemoveDeadEntitiesSystem : System{
     virtual void update(float time){
         for(auto entity : entities().with<Health>()){
             if(entity.get<Health>() <= 0){
@@ -649,14 +649,14 @@ SCENARIO("Testing ecs framework, unittests"){
         GIVEN("A SystemManager"){
             SystemManager systems(entities);
             WHEN("Adding count car system and remove dead entities system") {
-                systems.create<CountCarSystem>();
-                systems.create<RemoveDeadEntitiesSystem>();
+                systems.add<CountCarSystem>();
+                systems.add<RemoveDeadEntitiesSystem>();
                 THEN("Systems should exists"){
                     REQUIRE(systems.exists<CountCarSystem>());
                     REQUIRE(systems.exists<RemoveDeadEntitiesSystem>());
                 }
                 AND_WHEN("Removing one of them"){
-                    systems.destroy<CountCarSystem>();
+                    systems.remove<CountCarSystem>();
                     THEN("That system should not exist anymore"){
                         REQUIRE(!systems.exists<CountCarSystem>());
                     }

@@ -36,8 +36,8 @@
         assert(valid(E) && "Entity is no longer valid");                                    \
 
 #define ECS_ASSERT_IS_SYSTEM(S)                                                             \
-            static_assert(std::is_base_of<BaseSystem, S>::value,                            \
-            "DirivedSystem must inherit System<DirivedSystem>.");                           \
+            static_assert(std::is_base_of<System, S>::value,                                \
+            "DirivedSystem must inherit System.");                                          \
 
 #define ECS_MAX_NUM_OF_COMPONENTS 32
 #define ECS_DEFAULT_CHUNK_SIZE 8192
@@ -1369,79 +1369,87 @@ namespace details{
 
     class SystemManager{
     private:
-        class BaseSystem {
-        public:
-            virtual ~BaseSystem(){}
-            typedef std::size_t Family;
-
-            virtual void update(float time) = 0;
-
-        protected:
-            static Family& family_counter(){ static Family counter = 0; return counter; }
-            SystemManager* manager_;
-
-            friend class SystemManager;
-        }; //BaseSystem
     public:
+        class System{
+        public:
+            virtual ~System(){}
+            virtual void update(float time) = 0;
+        protected:
+            EntityManager& entities(){
+                return *manager_->entities_;
+            }
+        private:
+            friend class SystemManager;
+            SystemManager* manager_;
+        };
+
         SystemManager(EntityManager& entities) : entities_(&entities){}
 
+        ~SystemManager(){
+            for(auto system : systems_){
+                if(system != nullptr) delete system;
+            }
+            systems_.clear();
+        }
+
         template<typename S, typename ...Args>
-        S& create(Args && ... args){
+        S& add(Args &&... args){
             ECS_ASSERT_IS_SYSTEM(S);
-            //If system exist
             assert(!exists<S>() && "System already exists");
-            systems_.resize(S::family() + 1);
+            systems_.resize(system_index<S>() + 1);
             S* system = new S(std::forward<Args>(args) ...);
             system->manager_ = this;
-            systems_[S::family()] = system;
+            systems_[system_index<S>()] = system;
+            order_.push_back(system_index<S>());
             return *system;
         }
 
         template<typename S>
-        void destroy(){
+        void remove(){
             ECS_ASSERT_IS_SYSTEM(S);
             assert(exists<S>() && "System does not exist");
-            delete systems_[S::family()];
-            systems_[S::family()] = nullptr;
+            delete systems_[system_index<S>()];
+            systems_[system_index<S>()] = nullptr;
+            for (auto it = order_.begin(); it != order_.end(); ++it) {
+                if(*it == system_index<S>()){
+                    order_.erase(it);
+                }
+            }
         }
 
         void update(float time){
-            for(auto system : systems_){
-                if(system != nullptr) system->update(time);
+            for(auto index : order_){
+                systems_[index]->update(time);
             }
         }
 
         template<typename S>
         inline bool exists(){
             ECS_ASSERT_IS_SYSTEM(S);
-            return systems_.size() > S::family() && systems_[S::family()] != nullptr;
+            return systems_.size() > system_index<S>() && systems_[system_index<S>()] != nullptr;
         }
 
     private:
-        template<typename S>
-        friend class System;
+        template<typename C>
+        static size_t system_index(){
+            static size_t index = system_counter()++;
+            return index;
+        }
 
-        std::vector<BaseSystem*> systems_;
-        std::vector<BaseSystem::Family> order_;
+        static size_t& system_counter(){
+            static size_t counter = 0;
+            return counter;
+        }
+
+        std::vector<System*> systems_;
+        std::vector<size_t> order_;
         EntityManager* entities_;
-    };
-
-    template<typename S>
-    class System : public SystemManager::BaseSystem{
-    protected:
-        EntityManager& entities(){
-            return *manager_->entities_;
-        }
-    public:
-        static Family family() {
-            static Family family = family_counter()++;
-            return family;
-        }
     };
 
     template<typename ...Components>
     using EntityAlias = EntityManager::EntityAlias<Components...>;
     using Entity = EntityManager::Entity;
+    using System = SystemManager::System;
 } // namespace ecs
 
 namespace std{

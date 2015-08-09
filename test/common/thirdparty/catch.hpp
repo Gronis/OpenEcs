@@ -2361,7 +2361,7 @@ namespace Matchers {
     } // namespace StdString
     } // namespace Impl
 
-    // The following functions create the actual matcher objects.
+    // The following functions add the actual matcher objects.
     // This allows the types to be inferred
     template<typename ExpressionT>
     inline Impl::Generic::AllOf<ExpressionT> AllOf( Impl::Matcher<ExpressionT> const& m1,

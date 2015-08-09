@@ -172,11 +172,7 @@ Then we create a system class.
 Any new system class must inherit the System class like this:
 
 ```cpp
-//     Provide the type as template argument here
-//                  | _________________________
-//                  |                          |
-//                  v                          v
-class RemoveCorpsesSystem : public System<RemoveCorpsesSystem>{
+class RemoveCorpsesSystem : public System{
 public:
     void update(float time) override {
         // Get the entity manager using entities() function
@@ -192,11 +188,15 @@ public:
 EntityManager entities;
 SystemManager systems(entities);
 
-systems.create<RemoveCorpsesSystem>( /*Provide any constructor arguments*/ );
+systems.add<RemoveCorpsesSystem>( /*Provide any constructor arguments*/ );
 
-//Now update all systems at once
+//Here we update all systems
 float deltaTime = 1;
-systems.update(deltaTime);
+systems.update(deltaTime); //Updates RemoveCorpsesSystem
+
+//We can also remove systems when we do not need them
+systems.remove<RemoveCorpsesSystem>();
+systems.update(deltaTime);  //Does not updates any system
 
 ```
 
@@ -448,7 +448,7 @@ struct Spellcaster : public EntityAlias<Name, Health, Mana>{
     }
 };
 
-class RemoveCorpsesSystem : public System<RemoveCorpsesSystem>{
+class RemoveCorpsesSystem : public System{
 public:
     void update(float time) override {
         //Method 1
@@ -468,7 +468,7 @@ public:
     }
 };
 
-class CastSpellSystem : public System<CastSpellSystem>{
+class CastSpellSystem : public System{
 public:
     void update(float time) override {
         entities().fetch_every([&] (Spellcaster& spellcaster1){
@@ -481,7 +481,7 @@ public:
     }
 };
 
-class GiveManaSystem : public System<GiveManaSystem>{
+class GiveManaSystem : public System{
 public:
     void update(float time) override {
         entities().fetch_every([] (Spellcaster& spellcaster){
@@ -494,9 +494,9 @@ class Game{
 public:
     Game() : systems(entities) {}
     void run(){
-        systems.create<CastSpellSystem>();
-        systems.create<GiveManaSystem>();
-        systems.create<RemoveCorpsesSystem>();
+        systems.add<CastSpellSystem>();
+        systems.add<GiveManaSystem>();
+        systems.add<RemoveCorpsesSystem>();
         entities.create<Spellcaster>("Alice", 8, 12);
         entities.create<Spellcaster>("Bob", 12, 8);
         while(entities.count() > 1) systems.update(1);
