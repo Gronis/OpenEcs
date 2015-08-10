@@ -636,6 +636,9 @@ SCENARIO("Testing ecs framework, unittests"){
         }
         WHEN("Creating a car using the EntityManager without setting speed"){
             Car car = entities.create<Car>();
+            THEN("Car should be a car"){
+                REQUIRE(car.is<Car>());
+            }
             THEN("Car should not be moving"){
                 REQUIRE(!car.is_moving());
             }
@@ -643,6 +646,12 @@ SCENARIO("Testing ecs framework, unittests"){
                 car.drive(1,1);
                 THEN("Car should be driving"){
                     REQUIRE(car.is_moving());
+                }
+            }
+            AND_WHEN("Removing Wheels"){
+                car.remove<Wheels>();
+                THEN("Car is no longer a car"){
+                    REQUIRE(!car.is<Car>());
                 }
             }
         }

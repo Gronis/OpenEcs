@@ -276,6 +276,18 @@ for(auto entity : entities.with<Health, Name>()){
 
 This is very useful, as we get another abstraction layer without giving up performance.
 
+
+NOTE: the "as" function will result in a runtime assertion error if the 
+entity does not have the required components (Health and Name in this case)
+
+Use "is" function to test if entity can be observed as an Actor
+
+```cpp
+// The "is" function will test if entity has all required components for Actor
+bool is_actor = entity.is<Actor>(); // <- Returns true
+```
+
+
 ###Creating entities by using EntityAlias
 By defining a constructor for the EntityAlias. We can use the create function from the EntityManager
 like this:

@@ -729,6 +729,15 @@ namespace details{
             inline bool has(){
                 return manager_->has_component<Components ...>(*this);
             }
+
+            /// Returns whether an entity is an entity alias or not
+            template<typename T>
+            inline bool is(){
+                ECS_ASSERT_IS_ENTITY(T);
+                ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
+                return has(T::mask());
+            }
+
             /// Returns true if entity has not been destroyed. False otherwise
             inline bool valid(){
                 return manager_->valid(*this);
@@ -972,6 +981,13 @@ namespace details{
             inline bool has(){
                 return entity_.has<Components_...>();
             }
+
+            /// Returns whether an entity is an entity alias or not
+            template<typename T>
+            inline bool is(){
+                return entity_.is<T>();
+            }
+
             /// Returns true if entity has not been destroyed. False otherwise
             inline bool valid(){
                 return entity_.valid();
