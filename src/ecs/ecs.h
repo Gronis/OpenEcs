@@ -33,7 +33,7 @@
         #T " should not include new variables, add them as Components instead.");           \
 
 #define ECS_ASSERT_VALID_ENTITY(E)                                                          \
-        assert(valid(E) && "Entity is no longer is_valid");                                    \
+        assert(valid(E) && "Entity is no longer valid");                                    \
 
 #define ECS_ASSERT_IS_SYSTEM(S)                                                             \
             static_assert(std::is_base_of<System, S>::value,                                \
@@ -1187,7 +1187,7 @@ namespace details{
 
         inline Entity operator[] (Entity::Id id){
             Entity entity = get(id);
-            assert(id == entity.id() && "Id is no longer is_valid (Entity was destroyed)");
+            assert(id == entity.id() && "Id is no longer valid (Entity was destroyed)");
             return entity;
         }
 

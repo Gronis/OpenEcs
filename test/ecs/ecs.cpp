@@ -221,12 +221,12 @@ SCENARIO("Testing ecs framework, unittests"){
                 }
             }
             WHEN("Entity remains without components"){
-                THEN("It should be is_valid"){
+                THEN("It should be valid"){
                     REQUIRE(entity.is_valid());
                 }
             }
             WHEN("Adding some components to Entity"){
-                THEN("It should still be is_valid"){
+                THEN("It should still be valid"){
                     REQUIRE(entity.is_valid());
                 }
             }
