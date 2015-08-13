@@ -62,6 +62,19 @@ entity.set<Health>(20);
 entity.add<Health>(10);// <- Assert failure, component already added
 ```
 
+To reduce boilerplate code, the constructor is optional. If nothing is done with it, just define data members:
+
+```cpp
+struct Health{
+    int value; 
+};
+
+Entity entity = entities.create(); 
+entity.add<Health>(10);
+
+```
+This is provided by using uniform initialization. 
+
 ### Accessing Components from entities
 Accessing components is just as easy
 
@@ -203,7 +216,7 @@ systems.update(deltaTime);  //Does not updates any system
 The systems are updated in the same order as they are added.
 
 ###Error handling
-Any runtime errors should be handled by static or runtime assertions.
+Any runtime or compile-time error should be handled by static or runtime assertions.
 
 ##Extra feature's
 Aside from the normal usage of bitmasks for Component recognition and storing components in a vector for cache 
@@ -348,6 +361,12 @@ struct Health : Property<int>{
     this->value = value;
   }; 
 };
+
+// Constructor is optional even with Property components. 
+// However this assignment operator will not work without
+// a given constructor.
+struct Health : Property<int>{};
+
 ```
 
 Now we should have some useful operator implementations for the health component which enables cleaner code
@@ -426,18 +445,10 @@ health and mana.
 
 using namespace ecs;
 
-//Using property
-struct Health: Property<int>{
-    Health(int value) : Property<int>(value){};
-};
-
-struct Mana : Property<int>{
-    Mana(int value) : Property<int>(value){};
-};
-
-struct Name : Property<std::string>{
-    Name(std::string value) : Property<std::string>(value){};
-};
+//Components as properties
+struct Health : Property<int>{};
+struct Mana   : Property<int>{};
+struct Name   : Property<std::string>{};
 
 struct Spellcaster : public EntityAlias<Name, Health, Mana>{
     Spellcaster(std::string name = "NoName" , int health = 0, int mana = 0){

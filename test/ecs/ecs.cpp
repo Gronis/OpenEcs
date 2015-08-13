@@ -43,34 +43,25 @@ struct Health : Property<short> {
 
 
 struct Mana : Property<float> {
+    // Needed for assignment operator
     Mana(float value) {
         this->value = value;
     }
 };
 
-struct Weight : Property<int> {
-    Weight(int value) : Property<int>(value) { }
-};
+struct Weight : Property<int> { };
 
-struct Height : Property<int> {
-    Height(int value) : Property<int>(value) { }
-};
+struct Height : Property<int> { };
 
-struct Clothes {
-};
+struct Clothes { };
 
-struct Shoes {
-};
+struct Shoes { };
 
-struct Hat {
-};
+struct Hat { };
 
-struct Name : Property<std::string> {
-    Name(std::string value) : Property<std::string>(value) { }
-};
+struct Name : Property<std::string> { };
 
 struct Velocity {
-    Velocity(float x, float y) : x(x), y(y) { }
     float x, y;
 };
 

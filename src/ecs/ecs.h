@@ -39,6 +39,11 @@
             static_assert(std::is_base_of<System, S>::value,                                \
             "DirivedSystem must inherit System.");                                          \
 
+#define ECS_ASSERT_MSG_ONLY_ONE_ARGS_PROPERTY_CONSTRUCTOR                                   \
+            "Creating a property component should only take 1 argument. "                   \
+            "If component should initilize more members, provide a "                        \
+            "constructor to initilize property component correctly"                         \
+
 #define ECS_MAX_NUM_OF_COMPONENTS 32
 #define ECS_DEFAULT_CHUNK_SIZE 8192
 
@@ -108,6 +113,24 @@ namespace details{
 
     template<typename T, typename Tail, typename... Ts>
     struct is_type<T, Tail, Ts...> : is_type<T, Ts...>::type {};
+
+
+    template< class T, typename ... Args>
+    class has_constructor {
+        template<int x>
+        class receive_size{};
+
+        template< class U >
+        static int sfinae( receive_size< sizeof U(typename std::remove_reference<Args>::type {}...) > * );
+
+        template< class U >
+        static char sfinae( ... );
+
+    public:
+        enum { value = sizeof( sfinae<T>(0) ) == sizeof(int) };
+    };
+
+
 
     ///---------------------------------------------------------------------
     /// Any class that should not be able to copy itself inherit this class
@@ -225,6 +248,12 @@ namespace details{
     };
 
     ///---------------------------------------------------------------------
+    /// Every Property must dirive from the BasePropery somehow used for
+    /// compile-time calculations
+    ///---------------------------------------------------------------------
+    struct BaseProperty {};
+
+    ///---------------------------------------------------------------------
     /// A StandardProperty is a helper class for Component with only one
     /// property of any type
     ///---------------------------------------------------------------------
@@ -246,7 +275,7 @@ namespace details{
     /// TODO: Add more operators?
     ///---------------------------------------------------------------------
     template<typename T>
-    struct StandardProperty{
+    struct StandardProperty : BaseProperty{
         StandardProperty(){}
 
         StandardProperty(const T& value) : value(value){}
@@ -438,25 +467,25 @@ namespace details{
 
 
     ///---------------------------------------------------------------------
-    /// BaseProperty
+    /// CompleteProperty
     ///
     /// First template argument is property type. Second argument is if
     /// type does implement ++i i++ --i i-- operators.
     /// Use has_integer_operators to determine if this class should be used.
     ///---------------------------------------------------------------------
     template<typename T, bool>
-    struct BaseProperty;
+    struct CompleteProperty;
 
     template<typename T>
-    struct BaseProperty<T, false> : details::StandardProperty<T> {
-        BaseProperty(){}
-        BaseProperty(const T& value) : details::StandardProperty<T>(value){}
+    struct CompleteProperty<T, false> : details::StandardProperty<T> {
+        CompleteProperty(){}
+        CompleteProperty(const T& value) : details::StandardProperty<T>(value){}
     };
 
     template<typename T>
-    struct BaseProperty<T, true> : details::IntegerProperty<T> {
-        BaseProperty(){}
-        BaseProperty(const T& value) : details::IntegerProperty<T>(value){}
+    struct CompleteProperty<T, true> : details::IntegerProperty<T> {
+        CompleteProperty(){}
+        CompleteProperty(const T& value) : details::IntegerProperty<T>(value){}
     };
 
 } // namespace details
@@ -471,7 +500,7 @@ namespace details{
     ///
     ///---------------------------------------------------------------------
     template<typename T>
-    using Property = details::BaseProperty<T, details::has_integer_operators<T>::value>;
+    using Property = details::CompleteProperty<T, details::has_integer_operators<T>::value>;
 
     ///---------------------------------------------------------------------
     /// This is the main class for holding all Entities and Components
@@ -574,11 +603,34 @@ namespace details{
                     manager_(manager),
                     pool_(chunk_size){}
 
-            /// Allocate and create at specific index
+            /// Allocate and create at specific index, using constructor
             template<typename ...Args>
-            C& create(index_t index, Args && ... args){
+            auto create(index_t index, Args && ... args) ->
+            typename std::enable_if<details::has_constructor<C,Args...>::value, C&>::type {
                 pool_.ensure_min_size(index + 1);
-                new(get_ptr(index)) C(std::forward<Args>(args) ...);
+                new(get_ptr(index)) C(std::forward<Args>(args)...);
+                return get(index);
+            }
+
+            template<typename ...Args>
+            auto create(index_t index, Args && ... args) ->
+            typename std::enable_if<
+                    !details::has_constructor<C,Args...>::value &&
+                    !std::is_base_of<details::BaseProperty, C>::value, C&>::type {
+                pool_.ensure_min_size(index + 1);
+                new(get_ptr(index)) C{std::forward<Args>(args)...};
+                return get(index);
+            }
+
+
+            template<typename ...Args>
+            auto create(index_t index, Args && ... args) ->
+            typename std::enable_if<
+                    !details::has_constructor<C,Args...>::value &&
+                    std::is_base_of<details::BaseProperty, C>::value, C&>::type {
+                static_assert(sizeof...(Args) == 1 , ECS_ASSERT_MSG_ONLY_ONE_ARGS_PROPERTY_CONSTRUCTOR);
+                pool_.ensure_min_size(index + 1);
+                new(get_ptr(index)) decltype(C{}.value)(std::forward<Args>(args)...);
                 return get(index);
             }
 
@@ -1264,6 +1316,38 @@ namespace details{
             return get_component_manager_fast<C>().get(index);
         }
 
+        /// Use to create a component tmp that is assignable. Call the right constructor
+        template<typename C, typename ...Args>
+        static auto create_tmp_component(Args && ... args) ->
+        typename std::enable_if<details::has_constructor<C,Args...>::value, C>::type {
+            return C(std::forward<Args>(args) ...);
+        }
+
+        /// Use to create a component tmp that is assignable. Call the right constructor
+        template<typename C, typename ...Args>
+        static auto create_tmp_component(Args && ... args) ->
+        typename std::enable_if<
+                !details::has_constructor<C,Args...>::value &&
+                !std::is_base_of<details::BaseProperty, C>::value,
+        C>::type {
+            return C{std::forward<Args>(args) ...};
+        }
+
+        /// Use to create a component tmp that is assignable. Call the right constructor
+        /// Called when component is a property, and no constructor inaccessible.
+        template<typename C, typename ...Args>
+        static auto create_tmp_component(Args && ... args) ->
+        typename std::enable_if<
+                !details::has_constructor<C,Args...>::value &&
+                std::is_base_of<details::BaseProperty, C>::value,
+        C>::type {
+            static_assert(sizeof...(Args) == 1 , ECS_ASSERT_MSG_ONLY_ONE_ARGS_PROPERTY_CONSTRUCTOR);
+            static_assert(sizeof(C) == sizeof(std::tuple<Args...>),
+                  "Cannot initilize component property. Please provide a constructor");
+            auto tmp = decltype(C{}.value)(std::forward<Args>(args)...);
+            return *reinterpret_cast<C*>(&tmp);
+        }
+
         template<typename C, typename ...Args>
         inline C& create_component(Entity &entity, Args &&... args){
             ECS_ASSERT_VALID_ENTITY(entity);
@@ -1305,7 +1389,9 @@ namespace details{
         template<typename C, typename ...Args>
         inline C& set_component(Entity& entity, Args && ... args){
             ECS_ASSERT_VALID_ENTITY(entity);
-            if(entity.has<C>()) return get_component_fast<C>(entity) = C(args...);
+            if(entity.has<C>()){
+                return get_component_fast<C>(entity) = create_tmp_component<C>(std::forward<Args>(args)...);
+            }
             else return create_component<C>(entity, std::forward<Args>(args)...);
         }
 
@@ -1313,7 +1399,7 @@ namespace details{
         inline C& set_component_fast(Entity& entity, Args && ... args){
             ECS_ASSERT_VALID_ENTITY(entity);
             assert(entity.has<C>() && "Entity does not have component attached");
-            return get_component_fast<C>(entity) = C(args...);
+            return get_component_fast<C>(entity) = create_tmp_component<C>(std::forward<Args>(args)...);
         }
 
         inline bool has_component(Entity& entity, ComponentMask component_mask){

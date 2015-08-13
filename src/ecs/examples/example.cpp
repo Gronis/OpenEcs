@@ -19,18 +19,10 @@
 
 using namespace ecs;
 
-//Using property
-struct Health: Property<int>{
-    Health(int value) : Property<int>(value){};
-};
-
-struct Mana : Property<int>{
-    Mana(int value) : Property<int>(value){};
-};
-
-struct Name : Property<std::string>{
-    Name(std::string value) : Property<std::string>(value){};
-};
+//Components as properties
+struct Health : Property<int>{};
+struct Mana   : Property<int>{};
+struct Name   : Property<std::string>{};
 
 struct Spellcaster : public EntityAlias<Name, Health, Mana>{
     Spellcaster(std::string name = "NoName" , int health = 0, int mana = 0){
