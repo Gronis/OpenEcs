@@ -33,7 +33,7 @@
         #T " should not include new variables, add them as Components instead.");           \
 
 #define ECS_ASSERT_VALID_ENTITY(E)                                                          \
-        assert(valid(E) && "Entity is no longer valid");                                    \
+        assert(valid(E) && "Entity is no longer is_valid");                                    \
 
 #define ECS_ASSERT_IS_SYSTEM(S)                                                             \
             static_assert(std::is_base_of<System, S>::value,                                \
@@ -791,8 +791,8 @@ namespace details{
             }
 
             /// Returns true if entity has not been destroyed. False otherwise
-            inline bool valid(){
-                return manager_->valid(*this);
+            inline bool is_valid(){
+                return manager_->is_valid(*this);
             }
 
             template <typename ...Components>
@@ -1042,7 +1042,7 @@ namespace details{
 
             /// Returns true if entity has not been destroyed. False otherwise
             inline bool valid(){
-                return entity_.valid();
+                return entity_.is_valid();
             }
 
             template <typename ...Components_>
@@ -1187,7 +1187,7 @@ namespace details{
 
         inline Entity operator[] (Entity::Id id){
             Entity entity = get(id);
-            assert(id == entity.id() && "Id is no longer valid (Entity was destroyed)");
+            assert(id == entity.id() && "Id is no longer is_valid (Entity was destroyed)");
             return entity;
         }
 
@@ -1421,7 +1421,7 @@ namespace details{
             return has_component(index, component_mask<Components...>());
         }
 
-        inline bool valid(Entity& entity){
+        inline bool is_valid(Entity &entity){
             sortFreeList();
             return !binary_search(free_list_.begin(), free_list_.end(), entity.id().index_) &&
             entity.id().index_ < entity_versions_.size() && entity == get(entity.id().index_);

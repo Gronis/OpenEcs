@@ -132,7 +132,7 @@ entity.destroy();
 entity.add<Health>(0); // <- triggers runtime assertion, Entity invalid
 
 //Check if entity is valid
-bool valid = entity.valid();
+bool is_valid = entity.is_valid();
 ```
 
 To track if an entity is valid. OpenEcs accociates each entity with a version when accessed from the EntityManager. Whenever an entity is destoyed, the version for that Entity changes, and all entities with the old versions are invalid, as they no longer exists.
@@ -260,7 +260,7 @@ We can get every entity that can be associated as an Actor (all entities with He
 ```cpp
 EntityManager entities;
 
-Entity entity = entity.create();
+Entity entity = entities.create();
 entity.add<Health>(0);
 entity.add<Name>("");
 

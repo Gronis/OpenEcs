@@ -221,19 +221,19 @@ SCENARIO("Testing ecs framework, unittests"){
                 }
             }
             WHEN("Entity remains without components"){
-                THEN("It should be valid"){
-                    REQUIRE(entity.valid());
+                THEN("It should be is_valid"){
+                    REQUIRE(entity.is_valid());
                 }
             }
             WHEN("Adding some components to Entity"){
-                THEN("It should still be valid"){
-                    REQUIRE(entity.valid());
+                THEN("It should still be is_valid"){
+                    REQUIRE(entity.is_valid());
                 }
             }
             WHEN("Destroying entity once"){
                 entity.destroy();
                 THEN("It should be invalid"){
-                    REQUIRE(!entity.valid());
+                    REQUIRE(!entity.is_valid());
                 }
             }
             // TODO: Find a way to test assert
@@ -250,8 +250,8 @@ SCENARIO("Testing ecs framework, unittests"){
                 Entity entity2 = entities.create();
                 THEN("Old entity and new entity should have same id but old should be invalid"){
                     REQUIRE(entity.id().index() == entity2.id().index());
-                    REQUIRE(!entity.valid());
-                    REQUIRE(entity2.valid());
+                    REQUIRE(!entity.is_valid());
+                    REQUIRE(entity2.is_valid());
                 }
             }
             WHEN("Adding Health and Mana with different values to entity"){
@@ -666,7 +666,7 @@ SCENARIO("Testing ecs framework, unittests"){
                     e.add<Health>(-1);
                     systems.update(0);
                     THEN("Entity should be removed."){
-                        REQUIRE(!e.valid());
+                        REQUIRE(!e.is_valid());
                         REQUIRE(entities.count() == 0);
                     }
                 }
