@@ -388,18 +388,18 @@ NOTE: Remember that any class can be a component, and that it is optional to use
 On my Apple MBP Retina 13" 2014 computer, this is some performance tests using 10 000 000 entities with some components 
 attached:
 
-| Operation                                             |      Time      |
+| Operation                                             |      Time     |
 |-------------------------------------------------------|---------------|
-| create()                                              |     0.31s     |
-| create(10M)                                           |     0.19s     |
-| destroy()                                             |     0.54s     |
-| iterating using with for-loop (without unpacking)     |     0.00986s  |
-| iterating using with for-loop (unpack one component)  |     0.01579s  |
-| iterating using with lambda (unpack one component)    |     0.01609s  |
-| iterating using with for-loop (unpack two components) |     0.01847s  |
-| iterating using with lambda (unpack two components)   |     0.01886s  |
-| iterating using fetch_every for-loop                  |     0.00909s  |
-| iterating using fetch_every lambda                    |     0.00916s  |
+| create()                                              |     0.26s     |
+| create(10M)                                           |     0.14s     |
+| destroy()                                             |     0.07659s  |
+| iterating using with for-loop (without unpacking)     |     0.00847s  |
+| iterating using with for-loop (unpack one component)  |     0.01525s  |
+| iterating using with lambda (unpack one component)    |     0.01525s  |
+| iterating using with for-loop (unpack two components) |     0.01815s  |
+| iterating using with lambda (unpack two components)   |     0.01815s  |
+| iterating using fetch_every for-loop                  |     0.00847s  |
+| iterating using fetch_every lambda                    |     0.00847s  |
 
 To improve performance iterate by using auto when iterating with a for loop
 
