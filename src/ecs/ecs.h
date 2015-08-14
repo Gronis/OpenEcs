@@ -394,9 +394,8 @@ namespace details{
         inline T operator << (const E& rhs) {
             return value << rhs;
         }
-
-    public:
         T value;
+        typedef T ValueType;
     };
 
     ///---------------------------------------------------------------------
@@ -617,7 +616,7 @@ namespace details{
                     std::is_base_of<details::BaseProperty, C>::value, C&>::type {
                 static_assert(sizeof...(Args) == 1 , ECS_ASSERT_MSG_ONLY_ONE_ARGS_PROPERTY_CONSTRUCTOR);
                 pool_.ensure_min_size(index + 1);
-                new(get_ptr(index)) decltype(C{}.value)(std::forward<Args>(args)...);
+                new(get_ptr(index)) typename C::ValueType(std::forward<Args>(args)...);
                 return get(index);
             }
 
@@ -1331,7 +1330,7 @@ namespace details{
             static_assert(sizeof...(Args) == 1 , ECS_ASSERT_MSG_ONLY_ONE_ARGS_PROPERTY_CONSTRUCTOR);
             static_assert(sizeof(C) == sizeof(std::tuple<Args...>),
                   "Cannot initilize component property. Please provide a constructor");
-            auto tmp = decltype(C{}.value)(std::forward<Args>(args)...);
+            auto tmp = typename C::ValueType(std::forward<Args>(args)...);
             return *reinterpret_cast<C*>(&tmp);
         }
 

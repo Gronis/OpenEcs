@@ -283,7 +283,7 @@ The sweetness with using the "fetch_every" function is that it basically generat
 EntityManager entities;
 
 for(auto entity : entities.with<Health, Name>()){
-    entity.get<Health>().value = 0; // actor.kill();
+    entity.get<Health>().value = 0; // <- same as actor.kill();
 }
 ```
 
@@ -297,7 +297,9 @@ Use "is" function to test if entity can be observed as an Actor
 
 ```cpp
 // The "is" function will test if entity has all required components for Actor
-bool is_actor = entity.is<Actor>(); // <- Returns true
+if(entity.is<Actor>()){ // <- same as entity.has<Health, Name>()
+    Actor actor = entity.as<Actor>(); // <- Safe to Access Entity Alias
+} 
 ```
 
 
