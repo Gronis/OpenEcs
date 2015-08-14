@@ -33,7 +33,7 @@
         #T " should not include new variables, add them as Components instead.");           \
 
 #define ECS_ASSERT_VALID_ENTITY(E)                                                          \
-        assert(valid(E) && "Entity is no longer valid");                                    \
+        assert(is_valid(E) && "Entity is no longer valid");                                 \
 
 #define ECS_ASSERT_IS_SYSTEM(S)                                                             \
             static_assert(std::is_base_of<System, S>::value,                                \
@@ -115,20 +115,7 @@ namespace details{
     struct is_type<T, Tail, Ts...> : is_type<T, Ts...>::type {};
 
 
-    template< class T, typename ... Args>
-    class has_constructor {
-        template<int x>
-        class receive_size{};
 
-        template< class U >
-        static int sfinae( receive_size< sizeof U(typename std::remove_reference<Args>::type {}...) > * );
-
-        template< class U >
-        static char sfinae( ... );
-
-    public:
-        enum { value = sizeof( sfinae<T>(0) ) == sizeof(int) };
-    };
 
 
 
@@ -606,7 +593,7 @@ namespace details{
             /// Allocate and create at specific index, using constructor
             template<typename ...Args>
             auto create(index_t index, Args && ... args) ->
-            typename std::enable_if<details::has_constructor<C,Args...>::value, C&>::type {
+            typename std::enable_if<std::is_constructible<C,Args...>::value, C&>::type {
                 pool_.ensure_min_size(index + 1);
                 new(get_ptr(index)) C(std::forward<Args>(args)...);
                 return get(index);
@@ -615,7 +602,7 @@ namespace details{
             template<typename ...Args>
             auto create(index_t index, Args && ... args) ->
             typename std::enable_if<
-                    !details::has_constructor<C,Args...>::value &&
+                    !std::is_constructible<C,Args...>::value &&
                     !std::is_base_of<details::BaseProperty, C>::value, C&>::type {
                 pool_.ensure_min_size(index + 1);
                 new(get_ptr(index)) C{std::forward<Args>(args)...};
@@ -626,7 +613,7 @@ namespace details{
             template<typename ...Args>
             auto create(index_t index, Args && ... args) ->
             typename std::enable_if<
-                    !details::has_constructor<C,Args...>::value &&
+                    !std::is_constructible<C,Args...>::value &&
                     std::is_base_of<details::BaseProperty, C>::value, C&>::type {
                 static_assert(sizeof...(Args) == 1 , ECS_ASSERT_MSG_ONLY_ONE_ARGS_PROPERTY_CONSTRUCTOR);
                 pool_.ensure_min_size(index + 1);
@@ -1319,7 +1306,7 @@ namespace details{
         /// Use to create a component tmp that is assignable. Call the right constructor
         template<typename C, typename ...Args>
         static auto create_tmp_component(Args && ... args) ->
-        typename std::enable_if<details::has_constructor<C,Args...>::value, C>::type {
+        typename std::enable_if<std::is_constructible<C,Args...>::value, C>::type {
             return C(std::forward<Args>(args) ...);
         }
 
@@ -1327,7 +1314,7 @@ namespace details{
         template<typename C, typename ...Args>
         static auto create_tmp_component(Args && ... args) ->
         typename std::enable_if<
-                !details::has_constructor<C,Args...>::value &&
+                !std::is_constructible<C,Args...>::value &&
                 !std::is_base_of<details::BaseProperty, C>::value,
         C>::type {
             return C{std::forward<Args>(args) ...};
@@ -1338,7 +1325,7 @@ namespace details{
         template<typename C, typename ...Args>
         static auto create_tmp_component(Args && ... args) ->
         typename std::enable_if<
-                !details::has_constructor<C,Args...>::value &&
+                !std::is_constructible<C,Args...>::value &&
                 std::is_base_of<details::BaseProperty, C>::value,
         C>::type {
             static_assert(sizeof...(Args) == 1 , ECS_ASSERT_MSG_ONLY_ONE_ARGS_PROPERTY_CONSTRUCTOR);
