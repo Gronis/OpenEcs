@@ -114,6 +114,13 @@ has_health = entity.has<Health>(); //Returns true
 
 ```
 
+Every component type gets its own id and a component masks tracks what components each entity has. By default, the max number of component types that can be used with OpenEcs is 64. This can be changed with a define like this BEFORE including the header.
+
+```cpp
+#define  ECS_MAX_NUM_OF_COMPONENTS 128
+#include "ecs/ecs.h"
+``` 
+
 ### Removing Entities and Components
 
 Destroying an entity can be done using the destroy method

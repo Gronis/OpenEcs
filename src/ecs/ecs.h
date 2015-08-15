@@ -23,6 +23,10 @@
 #include <functional>
 #include <assert.h>
 
+#define ECS_ASSERT_IS_FUNCTION(T)                                                           \
+        static_assert(details::is_callable<T>::value,                                         \
+        "Provide a function or lambda expression");                                         \
+
 #define ECS_ASSERT_IS_ENTITY(T)                                                             \
         static_assert(std::is_base_of<BaseEntityAlias, T>::value ||                         \
                   std::is_same<Entity, T>::value ,                                          \
@@ -44,7 +48,9 @@
             "If component should initilize more members, provide a "                        \
             "constructor to initilize property component correctly"                         \
 
-#define ECS_MAX_NUM_OF_COMPONENTS 32
+#ifndef ECS_MAX_NUM_OF_COMPONENTS
+#define ECS_MAX_NUM_OF_COMPONENTS 64
+#endif
 #define ECS_DEFAULT_CHUNK_SIZE 8192
 
 namespace ecs{
@@ -71,8 +77,7 @@ namespace details{
     struct function_traits<ReturnType(ClassType::*)(Args...) const>
     // we specialize for pointers to member function
     {
-        enum { arity = sizeof...(Args) };
-        // arity is the number of arguments.
+        enum { arg_count = sizeof...(Args) };
 
         typedef ReturnType return_type;
 
@@ -80,11 +85,10 @@ namespace details{
         struct arg_t
         {
             typedef typename std::tuple_element<i, std::tuple<Args...>>::type type;
-            // the i-th argument is equivalent to the i-th tuple element of a tuple
-            // composed of those arguments.
         };
         template <size_t i>
         using arg = typename arg_t<i>::type;
+
         template <size_t i>
         struct arg_remove_ref_t
         {
@@ -92,6 +96,7 @@ namespace details{
         };
         template <size_t i>
         using arg_remove_ref = typename arg_remove_ref_t<i>::type;
+
         typedef std::tuple<Args...> args;
     };
 
@@ -116,6 +121,23 @@ namespace details{
 
 
 
+    ///---------------------------------------------------------------------
+    /// Check if a class has implemented operator()
+    ///
+    /// Mostly used for checking if provided type is a lambda expression
+    ///---------------------------------------------------------------------
+    ///
+    template<typename T>
+    struct is_callable {
+        template<typename U>
+        static char test( decltype(&U::operator()) );
+
+        template<typename U>
+        static int test( ... );
+
+        enum{ value = sizeof(test<T>(0)) == sizeof(char) };
+    };
+
 
 
 
@@ -123,12 +145,12 @@ namespace details{
     /// Any class that should not be able to copy itself inherit this class
     ///---------------------------------------------------------------------
     ///
-    class NonCopyable {
+    class forbid_copies {
     protected:
-        NonCopyable() = default;
-        ~NonCopyable() = default;
-        NonCopyable(const NonCopyable &) = delete;
-        NonCopyable &operator=(const NonCopyable &) = delete;
+        forbid_copies() = default;
+        ~forbid_copies() = default;
+        forbid_copies(const forbid_copies &) = delete;
+        forbid_copies &operator=(const forbid_copies &) = delete;
     };
 
     ///---------------------------------------------------------------------
@@ -140,7 +162,7 @@ namespace details{
     /// Pool allocation class.
     ///
     ///---------------------------------------------------------------------
-    class BasePool {
+    class BasePool : forbid_copies {
     public:
         explicit BasePool(size_t element_size, size_t chunk_size = ECS_DEFAULT_CHUNK_SIZE) :
                 size_(0),
@@ -462,25 +484,26 @@ namespace details{
     /// This is the main class for holding all Entities and Components
     ///---------------------------------------------------------------------
     ///
-    /// It uses 1 memory pool for holding entities, 1 pool for holding masks,
-    /// and 1 memory pool for each additional component.
+    /// It uses a vector for holding entity versions and another for component
+    /// masks. It also uses 1 memory pool for each type of component.
     ///
-    /// A component is placed at the same index in the pool as the entity is
-    /// placed.
+    /// The index of each data structure is used to identify each entity.
+    /// The version is used for checking if entity is valid.
+    /// The component mask is used to check what components an entity has
     ///
-    /// The Entity id is the same as the index. When an Entity is removed,
-    /// the id is added to the free list. A free list knows where spaces are
+    /// The Entity id = {index + version}. When an Entity is removed,
+    /// the index is added to the free list. A free list knows where spaces are
     /// left open for new entities (to ensure no holes).
     ///
     ///---------------------------------------------------------------------
-    class EntityManager : details::NonCopyable {
+    class EntityManager : details::forbid_copies {
     public:
         ///---------------------------------------------------------------------
         /// Entity is the identifier of an identity
         ///---------------------------------------------------------------------
         ///
         /// An entity consists of an id and version. The version is used to
-        /// ensure that new entites allocated with the same id are separable.
+        /// ensure that new entities allocated with the same id are separable.
         ///
         /// An entity becomes invalid when destroyed.
         ///
@@ -491,8 +514,8 @@ namespace details{
         /// EntityAlias is a wrapper around an Entity
         ///---------------------------------------------------------------------
         ///
-        /// An entity interface makes modification of the entity and other
-        /// entities much easier when performing actions. It acts soley as an
+        /// An EntityAlias makes modification of the entity and other
+        /// entities much easier when performing actions. It acts solely as an
         /// abstraction layer between the entity and different actions.
         ///
         ///---------------------------------------------------------------------
@@ -502,14 +525,16 @@ namespace details{
         ///---------------------------------------------------------------------
         /// Iterator is an iterator for iterating through the entity manager
         ///---------------------------------------------------------------------
-        /// @usage Calling entities.with<Components>(), returns an iterator
-        ///        that iterates through all entities with specified Components
-        ///---------------------------------------------------------------------
         template<typename T>
         class Iterator;
 
         ///---------------------------------------------------------------------
         /// Helper class that is used to access the iterator
+        ///---------------------------------------------------------------------
+        /// @usage Calling entities.with<Components>(), returns a view
+        ///        that can be used to access the iterator with begin() and
+        ///        end() that iterates through all entities with specified
+        ///        Components
         ///---------------------------------------------------------------------
         template<typename T>
         class View;
@@ -553,7 +578,7 @@ namespace details{
         };
 
         template<typename C>
-        class ComponentManager : public BaseManager, details::NonCopyable{
+        class ComponentManager : public BaseManager, details::forbid_copies {
         public:
             ComponentManager(EntityManager& manager, size_t chunk_size = ECS_DEFAULT_CHUNK_SIZE) :
                     manager_(manager),
@@ -1137,9 +1162,10 @@ namespace details{
         }
 
         // Iterate through all entities with all components, specified as lambda parameters
-        // example: entities.with([] (Position& pos) { All position components });
+        // example: entities.with([] (Position& pos) {  });
         template<typename T>
         void with(T lambda){
+            ECS_ASSERT_IS_FUNCTION(T);
             with_<T>::for_each(*this, lambda);
         }
 
@@ -1152,8 +1178,9 @@ namespace details{
 
         template<typename T>
         void fetch_every(T lambda){
+            ECS_ASSERT_IS_FUNCTION(T);
             typedef details::function_traits<T> function;
-            static_assert(function::arity == 1, "Lambda must only have one argument");
+            static_assert(function::arg_count == 1, "Lambda or function must only have one argument");
             typedef typename function::template arg_remove_ref<0> entity_interface_t;
             for(entity_interface_t entityInterface : fetch_every<entity_interface_t>()){
                 lambda(entityInterface);
@@ -1186,6 +1213,8 @@ namespace details{
         template<typename Lambda, typename... Args>
         struct with_t<0, Lambda, Args...>{
             static inline void for_each(EntityManager& manager, Lambda lambda){
+                typedef details::function_traits<Lambda> function;
+                static_assert(function::arg_count > 0, "Lambda or function must have at least 1 argument.");
                 auto view = manager.with<Args...>();
                 auto it = view.begin();
                 auto end = view.end();
@@ -1210,7 +1239,7 @@ namespace details{
         };
 
         template<typename Lambda>
-        using with_ = with_t<details::function_traits<Lambda>::arity, Lambda>;
+        using with_ = with_t<details::function_traits<Lambda>::arg_count, Lambda>;
 
         //C1 should not be Entity
         template<typename C>
