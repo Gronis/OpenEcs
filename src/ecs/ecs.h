@@ -18,10 +18,10 @@
 
 #include <bitset>
 #include <vector>
-#include <exception>
 #include <string>
 #include <functional>
-#include <assert.h>
+#include <cassert>
+#include <iostream>
 
 #define ECS_ASSERT_IS_FUNCTION(T)                                                           \
         static_assert(details::is_callable<T>::value,                                         \

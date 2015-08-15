@@ -16,7 +16,6 @@
 /// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <iostream>
-#include <time.h>
 #include "common/thirdparty/catch.hpp"
 
 #include "ecs/ecs.h"
