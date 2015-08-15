@@ -433,47 +433,6 @@ namespace details{
         }
     };
 
-
-
-    ///---------------------------------------------------------------------
-    /// Determine whether a class overrides the ++ and -- operators
-    ///---------------------------------------------------------------------
-    template <typename T>
-    class has_integer_operators
-    {
-        template <typename C> static char pp(decltype(&C::operator++)) ;
-        template <typename C> static long pp(...);
-        template <typename C> static char mm( decltype(&C::operator--) ) ;
-        template <typename C> static long mm(...);
-
-    public:
-        enum { value = sizeof(pp<T>(0)) == sizeof(char)  &&
-                       sizeof(mm<T>(0)) == sizeof(char)};
-    };
-
-
-    ///---------------------------------------------------------------------
-    /// CompleteProperty
-    ///
-    /// First template argument is property type. Second argument is if
-    /// type does implement ++i i++ --i i-- operators.
-    /// Use has_integer_operators to determine if this class should be used.
-    ///---------------------------------------------------------------------
-    template<typename T, bool>
-    struct CompleteProperty;
-
-    template<typename T>
-    struct CompleteProperty<T, false> : details::StandardProperty<T> {
-        CompleteProperty(){}
-        CompleteProperty(const T& value) : details::StandardProperty<T>(value){}
-    };
-
-    template<typename T>
-    struct CompleteProperty<T, true> : details::IntegerProperty<T> {
-        CompleteProperty(){}
-        CompleteProperty(const T& value) : details::IntegerProperty<T>(value){}
-    };
-
 } // namespace details
 
     ///---------------------------------------------------------------------
@@ -486,7 +445,18 @@ namespace details{
     ///
     ///---------------------------------------------------------------------
     template<typename T>
-    using Property = details::CompleteProperty<T, details::has_integer_operators<T>::value>;
+    class Property : public std::conditional<std::is_integral<T>::value,
+            details::IntegerProperty<T>,
+            details::StandardProperty<T>>::type {
+        typedef typename
+            std::conditional<std::is_integral<T>::value,
+                details::IntegerProperty<T>,
+                details::StandardProperty<T>>
+            ::type Base;
+    public:
+        Property(){}
+        Property(const T& value) : Base(value){}
+    };
 
     ///---------------------------------------------------------------------
     /// This is the main class for holding all Entities and Components
