@@ -14,6 +14,8 @@ I authored OpenEcs after using other ECS libraries. The main reason for this was
 wasn't supposed to become its own library. As I progressed, I thought it might be worth releasing it to the public as it 
 slightly became a library with a different approach than the others.
 
+OpenECS focuses on clean and understandable code that compiles to something very performant, with good defaults, but still providing the ability to configure alternative behaviours when necessary.
+
 ##Installation
 Just [Download](https://github.com/Gronis/OpenEcs/raw/master/src/ecs/ecs.h) the header and include it into your project.
 Make sure to enable c++11 when compiling. (-std=c++11 or -std=c++0x)
@@ -62,7 +64,7 @@ entity.set<Health>(20);
 entity.add<Health>(10);// <- Assert failure, component already added
 ```
 
-To reduce boilerplate code, the constructor is optional. If nothing is done with it, just define data members:
+To reduce boilerplate code, the constructor is optional. If setting variables is then only thing that happens in the constructor, leave it be.
 
 ```cpp
 struct Health{
@@ -73,13 +75,17 @@ Entity entity = entities.create();
 entity.add<Health>(10);
 
 ```
-This is provided by using uniform initialization. 
-
-### Accessing Components from entities
-Accessing components is just as easy
+NOTE: This is provided by using uniform initialization, which means that the arguments must be exactly the same as the member variables of the component 
 
 ```cpp
-//Add health component with a value of 10 to the entity
+entity.add<Health>(10.0f);// <- does not work, since float is not int
+```
+
+### Accessing Components from entities
+Accessing components is just as easy as adding them
+
+```cpp
+//Set health component with a value of 10 to the entity
 entity.set<Health>(10);
 
 //Access the Health Component
@@ -93,10 +99,11 @@ health.value = 3;
 
 //NOTE: Do not use (unless you know what you are doing)
 Health health = entity.get<Health>();
-health.value = 3; // <- does not apply any change
+health.value = 3;// <- does not change health of entity, 
+//                     because variable is copied
 
 ```
-Accessing a component which does not exist on a specified entity, will trigger a runtime assertion. To check if an entitiy has a specified component, use the "has" function.
+Accessing a component which does not exist on a specified entity will trigger a runtime assertion. To check if an entitiy has a specified component, use the "has" function.
 
 ```cpp
 Entity entity = entities.create();
@@ -144,7 +151,7 @@ To access entities with certain components. There is a "with" function that look
 EntityManager entities;
 
 //Iterate through the entities, grabbing each 
-//component with Health and Mana component
+//entity with Health and Mana component
 for(Entity entity : entities.with<Health, Mana>()){
     entity.get<Health>(); //Do things with health
     entity.get<Mana>(); //Do things with mana
@@ -162,11 +169,16 @@ entities.with([](Health& health, Mana& mana, Entity entity){
     entity.remove<Health>();
 });
 
-//NOTE, use reference, not values as parameters.
-//(with the exception of Entity)
-//Otherwise, the components will be copied and
-//any change made to it will not be registered
-//on the acctual component
+```
+
+NOTE, use reference, not values as parameters. (with the exception of Entity). Otherwise, the components will be copied and any change made to it will not be registered on the acctual component.
+
+
+```cpp
+//Don't forget to use references ----
+//                      |             \
+//                      v              v
+entities.with([](Health & health, Mana & mana){ });
 
 ```
 
@@ -315,7 +327,7 @@ public://                                  |
     Actor(int health, std::string name){// |
         add<Health>(health);//             |
         add<Name>(name);//                 |
-        //Make sure to add any required components.
+        //Make sure to add all required components.
         //If any required component is not added,
         //this will cause a runtime assertion failure
 
@@ -330,7 +342,7 @@ public://                                  |
 Once we have the EntityAlias constructor, we can create
 an entity using the "create" function.
 
-```
+```cpp
 EntityManager entities;
 
 //Create an actor with 10 health and named Evil Dude
@@ -340,6 +352,91 @@ Actor actor = entities.create<Actor>(10, "Evil Dude");
 This results in a useful factory method for any EntityAlias. Another good thing is that what an Entity is, is defined by
 its components, and enables entities to be several things at the same time, without using hierarchy (Which is the idea 
 behind Entity Component Systems).
+
+###Wait a bit...
+
+You might start thinking "If all components should be added anyway. Why is the constructor needed?" I started thinking that too, and added a standard behavior. 
+
+Considering the following code:
+
+```cpp
+//Components
+struct Name {
+    str::string value;
+};
+struct Height {
+    int value;
+};
+struct Weight {
+    int value;
+};
+
+//Since components have optional constructors, We can type like this
+//to create an Actor (Entity with Name, Height and Weight)
+auto entity = entities.create();
+entity.add<Name>("Darth Vader");
+entity.add<Height>(180);
+entity.add<Weight>(75);
+
+//But we want to use the EntityAlias class, because we know what an Actor is. 
+//However, we don't want to write the construcor, because enouth is specified 
+//for the library to "figure out" how to create an Actor after specifying what 
+//components it has. Therefore, we leave out the constructor.
+class Actor : public EntityAlias<Name, Height, Weight> {};
+
+//And then create an Actor like this
+entities.create<Actor>("Darth Vader", 180, 75); 
+//                          ^          ^   ^
+//                          |          |   |
+// Assumes constructor for Name       /    |
+// Assumes constructor for Height ---´    /
+// Assumes constructor for Weight -------´
+
+//create<Actor> assumes that each parameter can add
+//required components with that single argument.
+class Actor : public EntityAlias<Name, Height, Weight> {
+    //No construcor means the same thing as this constructor
+    Actor(std::string name, int height, int weight){
+        add<Name>(name);
+        add<Height>(height);
+        add<Weight>(weight);
+    }
+};
+```
+
+NOTE: This does not work when a required components needs more than one argument when creating the object. This is true with components like 2D velocity, and 2D position:
+
+```cpp
+//Components with MORE than 1 member variable
+struct Velocity{ int x,y; };
+struct Position{ int x,y; };
+
+//EntityAlias
+struct Moveable : EntityAlias<Position, Velocity>{};
+
+entities.create<Moveable>(/*What to write here?*/);
+
+//In order to create a moveable without providing a constructor
+//We must write like this.
+entities.create<Moveable>(Position{0,0}, Velocity{0,0});
+//This calls the standard copy constructor for Position and
+//Velocity component. 
+
+//If we want to be able to write something like this:
+entities.create<Moveable>(0,0,0,0);
+//We need to provide the following constructor, since
+//there is not enouth information specified for the
+//library to understand how to add create a Moveable.
+struct Moveable : EntityAlias<Position, Velocity>{
+    Moveable(int posX, int posY, int velX, int velY){
+        add<Position>(posX, posY);
+        add<Velocity>(velX, velY);
+    }
+};
+```
+
+Hopefully, this should help with quick creation of components and EntityAliases without typing "boilerplate code" for the lazy people (like me), while still allowing the flexibility of defining your own constructors when neccessary.
+
 
 ###Override operators
 It would be useful if the components override some basic operators for cleaner code.
@@ -352,7 +449,7 @@ bool health_equals_mana =
 bool health_equals_mana = 
     entity.get<Health>().value == entity.get<Mana>().value;
 ```
-However, defining operators for each component can be very anoying and time consume. In most cases (like the example above) almost unneccecary. If the component only has one property. In the case of Health in this example. There is a class called Property\<T\> which overrides useful operators. The Component class may extend this class to inherit some basic operators.
+However, defining operators for each component is just useless boilerplate code can be very anoying, time consuming, and difficult to write. If the component only has one property, in the case of Health in this example. There is a class called Property\<T\> which overrides useful operators. The Component class may extend this class to inherit some basic operators.
 
 ```cpp
 struct Health : Property<int>{
@@ -364,10 +461,13 @@ struct Health : Property<int>{
   }; 
 };
 
-// Constructor is optional even with Property components. 
-// However this assignment operator will not work without
+// Or skip the constructor entierly, like with usual components.
+// However the assignment operator will not work without
 // a given constructor.
 struct Health : Property<int>{};
+
+//Needs a constructor for assignment like this to work
+entity.get<Health>() = 4;// <- needs a constructor to enable assignment
 
 ```
 
@@ -447,17 +547,15 @@ health and mana.
 
 using namespace ecs;
 
-//Components as properties
+//Components as properties, we skip defining a constructor, since we
+//don't do anything unusual.
 struct Health : Property<int>{};
 struct Mana   : Property<int>{};
 struct Name   : Property<std::string>{};
 
 struct Spellcaster : public EntityAlias<Name, Health, Mana>{
-    Spellcaster(std::string name = "NoName" , int health = 0, int mana = 0){
-        add<Name>(name);
-        add<Health>(health);
-        add<Mana>(mana);
-    }
+    //We don't need to define a constructor since all of
+    //our components only have 1 member.
     bool isOom(){
         return get<Mana>() == 0;// <- override == operator
     }

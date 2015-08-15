@@ -919,6 +919,10 @@ namespace details{
         class EntityAlias : public BaseEntityAlias {
         private:
 
+            /// Underlying EntityAlias. Used for creating Entity alias without
+            /// a provided constructor
+            typedef EntityAlias<Components...> Type;
+
             template<typename C>
             using is_component = details::is_type<C, Components...>;
 
@@ -1044,28 +1048,31 @@ namespace details{
             EntityAlias(){}
 
         private:
+
+            template<typename C0, typename Arg>
+            inline void init_components(Arg arg){
+                add<C0>(arg);
+            }
+
+            template<typename C0, typename C1, typename ... Cs, typename Arg0, typename Arg1, typename ... Args>
+            inline void init_components(Arg0 arg0, Arg1 arg1, Args... args){
+                init_components<C0>(arg0);
+                init_components<C1, Cs...>(arg1, args...);
+            }
+
+            template<typename ... Args>
+            EntityAlias(Args... args){
+                init_components<Components...>(args...);
+            }
+
+            EntityAlias(Components... args){
+                init_components<Components...>(args...);
+            }
+
             static ComponentMask mask(){
                 return component_mask <Components...>();
             }
 
-            void fill_empty(){
-                if(!entity_.has(mask())){
-                    fill_empty_components<Components...>();
-                }
-            }
-
-            template<typename C>
-            void fill_empty_components(){
-                if(!has<C>()) {
-                    add<C>();
-                }
-            }
-
-            template<typename C, typename C1, typename ...Cs>
-            void fill_empty_components(){
-                fill_empty_components<C>();
-                fill_empty_components<C1, Cs...>();
-            }
 
             friend class EntityManager;
             friend class EntityAlias;
@@ -1126,14 +1133,30 @@ namespace details{
             return new_entities;
         }
 
+        /// If EntityAlias is constructable with Args...
         template<typename T, typename ...Args>
-        T create(Args... args){
+        auto create(Args... args) ->
+        typename std::enable_if<std::is_constructible<T, Args...>::value, T>::type{
             ECS_ASSERT_IS_ENTITY(T);
             ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
             Entity entity = create();
             T* entity_alias = new(&entity) T(std::forward<Args>(args)...);
             assert(entity.has(T::mask()));
             return *entity_alias;
+        }
+
+        /// If EntityAlias is not constructable with Args...
+        /// Atempt to create with underlying EntityAlias
+        template<typename T, typename ...Args>
+        auto create(Args... args) ->
+        typename std::enable_if<!std::is_constructible<T, Args...>::value, T>::type{
+            ECS_ASSERT_IS_ENTITY(T);
+            ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
+            typedef typename T::Type Type;
+            Entity entity = create();
+            Type* entity_alias = new(&entity) Type(std::forward<Args>(args)...);
+            assert(entity.has(T::mask()));
+            return *reinterpret_cast<T*>(entity_alias);
         }
 
         // Access a View of all entities with specified components

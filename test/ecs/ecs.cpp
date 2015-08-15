@@ -65,6 +65,10 @@ struct Velocity {
     float x, y;
 };
 
+struct Position {
+    float x, y;
+};
+
 struct Wheels {
     int number;
 };
@@ -89,6 +93,8 @@ struct Car : EntityAlias<Wheels> {
         return !(vel.x == 0 && vel.y == 0);
     }
 };
+
+struct Character : EntityAlias<Name, Height, Weight>{};
 
 struct CountCarSystem : System{
     int count = 0;
@@ -644,6 +650,14 @@ SCENARIO("Testing ecs framework, unittests"){
                 THEN("Car is no longer a car"){
                     REQUIRE(!car.is<Car>());
                 }
+            }
+        }
+        WHEN("Creating a Character using standard constructor with name: TestCharacter, Height: 180, Weight: 80") {
+            Character character = entities.create<Character>("TestCharacter", 180, 80);
+            THEN("Name, height and weight should be correct"){
+                REQUIRE(character.get<Name>() == "TestCharacter");
+                REQUIRE(character.get<Height>() == 180);
+                REQUIRE(character.get<Weight>() == 80);
             }
         }
         GIVEN("A SystemManager"){

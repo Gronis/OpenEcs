@@ -19,17 +19,15 @@
 
 using namespace ecs;
 
-//Components as properties
+//Components as properties, we skip defining a constructor, since we
+//don't do anything unusual.
 struct Health : Property<int>{};
 struct Mana   : Property<int>{};
 struct Name   : Property<std::string>{};
 
 struct Spellcaster : public EntityAlias<Name, Health, Mana>{
-    Spellcaster(std::string name = "NoName" , int health = 0, int mana = 0){
-        add<Name>(name);
-        add<Health>(health);
-        add<Mana>(mana);
-    }
+    //We don't need to define a constructor since all of
+    //our components only have 1 member.
     bool isOom(){
         return get<Mana>() == 0;// <- override == operator
     }
