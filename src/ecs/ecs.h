@@ -24,7 +24,7 @@
 #include <iostream>
 
 #define ECS_ASSERT_IS_FUNCTION(T)                                                           \
-        static_assert(details::is_callable<T>::value,                                         \
+        static_assert(details::is_callable<T>::value,                                       \
         "Provide a function or lambda expression");                                         \
 
 #define ECS_ASSERT_IS_ENTITY(T)                                                             \
@@ -1026,7 +1026,7 @@ namespace details{
             }
 
             /// Returns true if entity has not been destroyed. False otherwise
-            inline bool valid(){
+            inline bool is_valid(){
                 return entity_.is_valid();
             }
 
@@ -1085,6 +1085,8 @@ namespace details{
                 if(manager) delete manager;
             }
             component_managers_.clear();
+            component_masks_.clear();
+            entity_versions_.clear();
             free_list_.clear();
         }
 
@@ -1477,7 +1479,7 @@ namespace details{
         friend class BaseComponent;
     };
 
-    class SystemManager{
+    class SystemManager : details::forbid_copies{
     private:
     public:
         class System{
@@ -1500,6 +1502,7 @@ namespace details{
                 if(system != nullptr) delete system;
             }
             systems_.clear();
+            order_.clear();
         }
 
         template<typename S, typename ...Args>
