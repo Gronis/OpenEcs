@@ -61,401 +61,401 @@ namespace ecs{
     /// Type used for entity version
     typedef uint8_t version_t;
 
-namespace details{
+    namespace details{
 
-    ///--------------------------------------------------------------------
-    /// function_traits is used to determine function properties
-    /// such as parameter types (arguments) and return type.
-    ///--------------------------------------------------------------------
-    template <typename T>
-    struct function_traits
-            : public function_traits<decltype(&T::operator())>
-    {};
-    // For generic types, directly use the result of the signature of its 'operator()'
+        ///--------------------------------------------------------------------
+        /// function_traits is used to determine function properties
+        /// such as parameter types (arguments) and return type.
+        ///--------------------------------------------------------------------
+        template <typename T>
+        struct function_traits
+                : public function_traits<decltype(&T::operator())>
+        {};
+        // For generic types, directly use the result of the signature of its 'operator()'
 
-    template <typename ClassType, typename ReturnType, typename... Args>
-    struct function_traits<ReturnType(ClassType::*)(Args...) const>
-    // we specialize for pointers to member function
-    {
-        enum { arg_count = sizeof...(Args) };
-
-        typedef ReturnType return_type;
-
-        template <size_t i>
-        struct arg_t
+        template <typename ClassType, typename ReturnType, typename... Args>
+        struct function_traits<ReturnType(ClassType::*)(Args...) const>
+            // we specialize for pointers to member function
         {
-            typedef typename std::tuple_element<i, std::tuple<Args...>>::type type;
-        };
-        template <size_t i>
-        using arg = typename arg_t<i>::type;
+            enum { arg_count = sizeof...(Args) };
 
-        template <size_t i>
-        struct arg_remove_ref_t
-        {
-            typedef typename std::remove_reference<arg<i>>::type type;
-        };
-        template <size_t i>
-        using arg_remove_ref = typename arg_remove_ref_t<i>::type;
+            typedef ReturnType return_type;
 
-        typedef std::tuple<Args...> args;
-    };
+            template <size_t i>
+            struct arg_t
+            {
+                typedef typename std::tuple_element<i, std::tuple<Args...>>::type type;
+            };
+            template <size_t i>
+            using arg = typename arg_t<i>::type;
 
+            template <size_t i>
+            struct arg_remove_ref_t
+            {
+                typedef typename std::remove_reference<arg<i>>::type type;
+            };
+            template <size_t i>
+            using arg_remove_ref = typename arg_remove_ref_t<i>::type;
 
-    ///---------------------------------------------------------------------
-    /// Determine if type is part of a list of types
-    ///---------------------------------------------------------------------
-    template<typename T, typename... Ts>
-    struct is_type;
-
-    template<typename T, typename... Ts>
-    struct is_type<T, T, Ts...> : std::true_type{};
-
-    template<typename T>
-    struct is_type<T, T> : std::true_type{};
-
-    template<typename T, typename Tail>
-    struct is_type<T, Tail> : std::false_type{};
-
-    template<typename T, typename Tail, typename... Ts>
-    struct is_type<T, Tail, Ts...> : is_type<T, Ts...>::type {};
-
-
-
-    ///---------------------------------------------------------------------
-    /// Check if a class has implemented operator()
-    ///
-    /// Mostly used for checking if provided type is a lambda expression
-    ///---------------------------------------------------------------------
-    ///
-    template<typename T>
-    struct is_callable {
-        template<typename U>
-        static char test( decltype(&U::operator()) );
-
-        template<typename U>
-        static int test( ... );
-
-        enum{ value = sizeof(test<T>(0)) == sizeof(char) };
-    };
-
-
-
-
-    ///---------------------------------------------------------------------
-    /// Any class that should not be able to copy itself inherit this class
-    ///---------------------------------------------------------------------
-    ///
-    class forbid_copies {
-    protected:
-        forbid_copies() = default;
-        ~forbid_copies() = default;
-        forbid_copies(const forbid_copies &) = delete;
-        forbid_copies &operator=(const forbid_copies &) = delete;
-    };
-
-    ///---------------------------------------------------------------------
-    /// A Pool is a memory pool.
-    /// See link for more info: http://en.wikipedia.org/wiki/Memory_pool
-    ///---------------------------------------------------------------------
-    ///
-    /// The BasePool is used to store void*. Use Pool<T> for a generic
-    /// Pool allocation class.
-    ///
-    ///---------------------------------------------------------------------
-    class BasePool : forbid_copies {
-    public:
-        explicit BasePool(size_t element_size, size_t chunk_size = ECS_DEFAULT_CHUNK_SIZE) :
-                size_(0),
-                capacity_(0),
-                element_size_(element_size),
-                chunk_size_(chunk_size) {
+            typedef std::tuple<Args...> args;
         };
 
-        virtual ~BasePool() {
-            for (char *ptr : chunks_) {
-                delete[] ptr;
+
+        ///---------------------------------------------------------------------
+        /// Determine if type is part of a list of types
+        ///---------------------------------------------------------------------
+        template<typename T, typename... Ts>
+        struct is_type;
+
+        template<typename T, typename... Ts>
+        struct is_type<T, T, Ts...> : std::true_type{};
+
+        template<typename T>
+        struct is_type<T, T> : std::true_type{};
+
+        template<typename T, typename Tail>
+        struct is_type<T, Tail> : std::false_type{};
+
+        template<typename T, typename Tail, typename... Ts>
+        struct is_type<T, Tail, Ts...> : is_type<T, Ts...>::type {};
+
+
+
+        ///---------------------------------------------------------------------
+        /// Check if a class has implemented operator()
+        ///
+        /// Mostly used for checking if provided type is a lambda expression
+        ///---------------------------------------------------------------------
+        ///
+        template<typename T>
+        struct is_callable {
+            template<typename U>
+            static char test( decltype(&U::operator()) );
+
+            template<typename U>
+            static int test( ... );
+
+            enum{ value = sizeof(test<T>(0)) == sizeof(char) };
+        };
+
+
+
+
+        ///---------------------------------------------------------------------
+        /// Any class that should not be able to copy itself inherit this class
+        ///---------------------------------------------------------------------
+        ///
+        class forbid_copies {
+        protected:
+            forbid_copies() = default;
+            ~forbid_copies() = default;
+            forbid_copies(const forbid_copies &) = delete;
+            forbid_copies &operator=(const forbid_copies &) = delete;
+        };
+
+        ///---------------------------------------------------------------------
+        /// A Pool is a memory pool.
+        /// See link for more info: http://en.wikipedia.org/wiki/Memory_pool
+        ///---------------------------------------------------------------------
+        ///
+        /// The BasePool is used to store void*. Use Pool<T> for a generic
+        /// Pool allocation class.
+        ///
+        ///---------------------------------------------------------------------
+        class BasePool : forbid_copies {
+        public:
+            explicit BasePool(size_t element_size, size_t chunk_size = ECS_DEFAULT_CHUNK_SIZE) :
+                    size_(0),
+                    capacity_(0),
+                    element_size_(element_size),
+                    chunk_size_(chunk_size) {
+            };
+
+            virtual ~BasePool() {
+                for (char *ptr : chunks_) {
+                    delete[] ptr;
+                }
             }
-        }
 
-        inline index_t size() const {
-            return size_;
-        }
-
-        inline index_t capacity() const {
-            return capacity_;
-        }
-
-        inline size_t chunks() const {
-            return chunks_.size();
-        }
-
-        inline void ensure_min_size(std::size_t size) {
-            if (size >= size_) {
-                if (size >= capacity_) ensure_min_capacity(size);
-                size_ = size;
+            inline index_t size() const {
+                return size_;
             }
-        }
 
-        inline void ensure_min_capacity(size_t min_capacity) {
-            while (min_capacity >= capacity_) {
-                char *chunk = new char[element_size_ * chunk_size_];
-                chunks_.push_back(chunk);
-                capacity_ += chunk_size_;
+            inline index_t capacity() const {
+                return capacity_;
             }
-        }
+
+            inline size_t chunks() const {
+                return chunks_.size();
+            }
+
+            inline void ensure_min_size(std::size_t size) {
+                if (size >= size_) {
+                    if (size >= capacity_) ensure_min_capacity(size);
+                    size_ = size;
+                }
+            }
+
+            inline void ensure_min_capacity(size_t min_capacity) {
+                while (min_capacity >= capacity_) {
+                    char *chunk = new char[element_size_ * chunk_size_];
+                    chunks_.push_back(chunk);
+                    capacity_ += chunk_size_;
+                }
+            }
 
 
-        virtual void destroy(index_t index) = 0;
+            virtual void destroy(index_t index) = 0;
 
-    protected:
-        index_t size_;
-        index_t capacity_;
-        size_t element_size_;
-        size_t chunk_size_;
-        std::vector<char *> chunks_;
+        protected:
+            index_t size_;
+            index_t capacity_;
+            size_t element_size_;
+            size_t chunk_size_;
+            std::vector<char *> chunks_;
 
-    };
+        };
 
-    ///---------------------------------------------------------------------
-    /// A Pool is a memory pool.
-    /// See link for more info: http://en.wikipedia.org/wiki/Memory_pool
-    ///---------------------------------------------------------------------
-    ///
-    /// The Pool is used to store * of any class. Destroying an object calls
-    /// destructor. The pool doesn't know where there is data allocated.
-    /// This must be done from outside.
-    ///
-    ///---------------------------------------------------------------------
-    template<typename T>
-    class Pool : public BasePool {
-    public:
-        Pool(size_t chunk_size) : BasePool(sizeof(T), chunk_size) { };
+        ///---------------------------------------------------------------------
+        /// A Pool is a memory pool.
+        /// See link for more info: http://en.wikipedia.org/wiki/Memory_pool
+        ///---------------------------------------------------------------------
+        ///
+        /// The Pool is used to store * of any class. Destroying an object calls
+        /// destructor. The pool doesn't know where there is data allocated.
+        /// This must be done from outside.
+        ///
+        ///---------------------------------------------------------------------
+        template<typename T>
+        class Pool : public BasePool {
+        public:
+            Pool(size_t chunk_size) : BasePool(sizeof(T), chunk_size) { };
 
-        virtual void destroy(index_t index) override {
-            assert(index < size_ && "Pool has not allocated memory for this index.");
-            T *ptr = get_ptr(index);
-            ptr->~T();
-        }
+            virtual void destroy(index_t index) override {
+                assert(index < size_ && "Pool has not allocated memory for this index.");
+                T *ptr = get_ptr(index);
+                ptr->~T();
+            }
 
-        inline T *get_ptr(index_t index) {
-            assert(index < capacity_ && "Pool has not allocated memory for this index.");
-            return reinterpret_cast<T *>(chunks_[index / chunk_size_] + (index % chunk_size_) * element_size_);
-        }
+            inline T *get_ptr(index_t index) {
+                assert(index < capacity_ && "Pool has not allocated memory for this index.");
+                return reinterpret_cast<T *>(chunks_[index / chunk_size_] + (index % chunk_size_) * element_size_);
+            }
 
-        const inline T *get_ptr(index_t index) const {
-            assert(index < capacity_ && "Pool has not allocated memory for this index.");
-            return reinterpret_cast<T *>(chunks_[index / chunk_size_] + (index % chunk_size_) * element_size_);
-        }
+            const inline T *get_ptr(index_t index) const {
+                assert(index < capacity_ && "Pool has not allocated memory for this index.");
+                return reinterpret_cast<T *>(chunks_[index / chunk_size_] + (index % chunk_size_) * element_size_);
+            }
 
-        inline virtual T& get(index_t index) {
-            return *get_ptr(index);
-        }
+            inline virtual T& get(index_t index) {
+                return *get_ptr(index);
+            }
 
-        inline T& operator[] (size_t index){
-            return get(index);
-        }
-    };
+            inline T& operator[] (size_t index){
+                return get(index);
+            }
+        };
 
-    ///---------------------------------------------------------------------
-    /// Every Property must dirive from the BasePropery somehow used for
-    /// compile-time calculations
-    ///---------------------------------------------------------------------
-    struct BaseProperty {};
+        ///---------------------------------------------------------------------
+        /// Every Property must dirive from the BasePropery somehow used for
+        /// compile-time calculations
+        ///---------------------------------------------------------------------
+        struct BaseProperty {};
 
-    ///---------------------------------------------------------------------
-    /// A StandardProperty is a helper class for Component with only one
-    /// property of any type
-    ///---------------------------------------------------------------------
-    ///
-    /// A StandardProperty is a helper class for Component with only one
-    /// property of any type.
-    ///
-    /// it implements standard constructors, type conversations and
-    /// operators:
-    ///
-    ///     ==, !=
-    ///     >=, <=, <, >
-    ///     +=, -=, *=, /=, %=
-    ///     &=, |=, ^=
-    ///     +, -, *; /, %
-    ///     &, |, ^, ~
-    ///     >>, <<
-    ///
-    /// TODO: Add more operators?
-    ///---------------------------------------------------------------------
-    template<typename T>
-    struct StandardProperty : BaseProperty{
-        StandardProperty(){}
+        ///---------------------------------------------------------------------
+        /// A StandardProperty is a helper class for Component with only one
+        /// property of any type
+        ///---------------------------------------------------------------------
+        ///
+        /// A StandardProperty is a helper class for Component with only one
+        /// property of any type.
+        ///
+        /// it implements standard constructors, type conversations and
+        /// operators:
+        ///
+        ///     ==, !=
+        ///     >=, <=, <, >
+        ///     +=, -=, *=, /=, %=
+        ///     &=, |=, ^=
+        ///     +, -, *; /, %
+        ///     &, |, ^, ~
+        ///     >>, <<
+        ///
+        /// TODO: Add more operators?
+        ///---------------------------------------------------------------------
+        template<typename T>
+        struct StandardProperty : BaseProperty{
+            StandardProperty(){}
 
-        StandardProperty(const T& value) : value(value){}
+            StandardProperty(const T& value) : value(value){}
 
-        inline operator const T&() const{
-            return value;
-        }
+            inline operator const T&() const{
+                return value;
+            }
 
-        inline operator T&(){
-            return value;
-        }
+            inline operator T&(){
+                return value;
+            }
 
-        template<typename E>
-        inline bool operator == (const E& rhs) const{
-            return value == rhs;
-        }
+            template<typename E>
+            inline bool operator == (const E& rhs) const{
+                return value == rhs;
+            }
 
-        template<typename E>
-        inline bool operator != (const E& rhs) const{
-            return value != rhs;
-        }
+            template<typename E>
+            inline bool operator != (const E& rhs) const{
+                return value != rhs;
+            }
 
-        template<typename E>
-        inline bool operator >= (const E& rhs) const{
-            return value >= rhs;
-        }
+            template<typename E>
+            inline bool operator >= (const E& rhs) const{
+                return value >= rhs;
+            }
 
-        template<typename E>
-        inline bool operator > (const E& rhs) const{
-            return value > rhs;
-        }
+            template<typename E>
+            inline bool operator > (const E& rhs) const{
+                return value > rhs;
+            }
 
-        template<typename E>
-        inline bool operator <= (const E& rhs) const{
-            return value <= rhs;
-        }
+            template<typename E>
+            inline bool operator <= (const E& rhs) const{
+                return value <= rhs;
+            }
 
-        template<typename E>
-        inline bool operator < (const E& rhs) const{
-            return value < rhs;
-        }
+            template<typename E>
+            inline bool operator < (const E& rhs) const{
+                return value < rhs;
+            }
 
-        template<typename E>
-        inline T& operator += (const E& rhs) {
-            return value += rhs;
-        }
+            template<typename E>
+            inline T& operator += (const E& rhs) {
+                return value += rhs;
+            }
 
-        template<typename E>
-        inline T& operator -= (const E& rhs) {
-            return value -= rhs;
-        }
+            template<typename E>
+            inline T& operator -= (const E& rhs) {
+                return value -= rhs;
+            }
 
-        template<typename E>
-        inline T& operator *= (const E& rhs) {
-            return value *= rhs;
-        }
+            template<typename E>
+            inline T& operator *= (const E& rhs) {
+                return value *= rhs;
+            }
 
-        template<typename E>
-        inline T& operator /= (const E& rhs) {
-            return value /= rhs;
-        }
+            template<typename E>
+            inline T& operator /= (const E& rhs) {
+                return value /= rhs;
+            }
 
-        template<typename E>
-        inline T& operator %= (const E& rhs) {
-            return value %= rhs;
-        }
+            template<typename E>
+            inline T& operator %= (const E& rhs) {
+                return value %= rhs;
+            }
 
-        template<typename E>
-        inline T& operator &= (const E& rhs) {
-            return value &= rhs;
-        }
+            template<typename E>
+            inline T& operator &= (const E& rhs) {
+                return value &= rhs;
+            }
 
-        template<typename E>
-        inline T& operator |= (const E& rhs) {
-            return value |= rhs;
-        }
+            template<typename E>
+            inline T& operator |= (const E& rhs) {
+                return value |= rhs;
+            }
 
-        template<typename E>
-        inline T& operator ^= (const E& rhs) {
-            return value ^= rhs;
-        }
+            template<typename E>
+            inline T& operator ^= (const E& rhs) {
+                return value ^= rhs;
+            }
 
-        template<typename E>
-        inline T operator + (const E& rhs) {
-            return value + rhs;
-        }
+            template<typename E>
+            inline T operator + (const E& rhs) {
+                return value + rhs;
+            }
 
-        template<typename E>
-        inline T operator - (const E& rhs) {
-            return value - rhs;
-        }
+            template<typename E>
+            inline T operator - (const E& rhs) {
+                return value - rhs;
+            }
 
-        template<typename E>
-        inline T operator * (const E& rhs) {
-            return value * rhs;
-        }
+            template<typename E>
+            inline T operator * (const E& rhs) {
+                return value * rhs;
+            }
 
-        template<typename E>
-        inline T operator / (const E& rhs) {
-            return value / rhs;
-        }
+            template<typename E>
+            inline T operator / (const E& rhs) {
+                return value / rhs;
+            }
 
-        template<typename E>
-        inline T operator & (const E& rhs) {
-            return value & rhs;
-        }
+            template<typename E>
+            inline T operator & (const E& rhs) {
+                return value & rhs;
+            }
 
-        template<typename E>
-        inline T operator | (const E& rhs) {
-            return value | rhs;
-        }
+            template<typename E>
+            inline T operator | (const E& rhs) {
+                return value | rhs;
+            }
 
-        template<typename E>
-        inline T operator ^ (const E& rhs) {
-            return value ^ rhs;
-        }
+            template<typename E>
+            inline T operator ^ (const E& rhs) {
+                return value ^ rhs;
+            }
 
-        template<typename E>
-        inline T operator ~ () {
-            return ~value;
-        }
+            template<typename E>
+            inline T operator ~ () {
+                return ~value;
+            }
 
-        template<typename E>
-        inline T operator >> (const E& rhs) {
-            return value >> rhs;
-        }
+            template<typename E>
+            inline T operator >> (const E& rhs) {
+                return value >> rhs;
+            }
 
-        template<typename E>
-        inline T operator << (const E& rhs) {
-            return value << rhs;
-        }
-        T value;
-        typedef T ValueType;
-    };
+            template<typename E>
+            inline T operator << (const E& rhs) {
+                return value << rhs;
+            }
+            T value;
+            typedef T ValueType;
+        };
 
-    ///---------------------------------------------------------------------
-    /// A IntegerProperty is a helper class for Component with only one
-    /// property of any type.
-    ///
-    /// it implements standard operators:  ++  --
-    ///---------------------------------------------------------------------
-    template<typename T>
-    struct IntegerProperty : StandardProperty<T> {
-        IntegerProperty(){}
+        ///---------------------------------------------------------------------
+        /// A IntegerProperty is a helper class for Component with only one
+        /// property of any type.
+        ///
+        /// it implements standard operators:  ++  --
+        ///---------------------------------------------------------------------
+        template<typename T>
+        struct IntegerProperty : StandardProperty<T> {
+            IntegerProperty(){}
 
-        IntegerProperty(const T& value) : StandardProperty<T>(value){}
+            IntegerProperty(const T& value) : StandardProperty<T>(value){}
 
-        inline T& operator -- () {
-            --this->value;
-            return this->value;
-        }
+            inline T& operator -- () {
+                --this->value;
+                return this->value;
+            }
 
-        inline T operator -- (int) {
-            T copy = *this;
-            operator--();
-            return copy;
-        }
+            inline T operator -- (int) {
+                T copy = *this;
+                operator--();
+                return copy;
+            }
 
-        inline T& operator ++ () {
-            ++this->value;
-            return this->value;
-        }
+            inline T& operator ++ () {
+                ++this->value;
+                return this->value;
+            }
 
-        inline T operator ++ (int) {
-            T copy = *this;
-            operator++();
-            return copy;
-        }
-    };
+            inline T operator ++ (int) {
+                T copy = *this;
+                operator++();
+                return copy;
+            }
+        };
 
-} // namespace details
+    } // namespace details
 
     ///---------------------------------------------------------------------
     /// A Property is a sample Component with only one property of any type
@@ -471,10 +471,10 @@ namespace details{
             details::IntegerProperty<T>,
             details::StandardProperty<T>>::type {
         typedef typename
-            std::conditional<std::is_integral<T>::value,
+        std::conditional<std::is_integral<T>::value,
                 details::IntegerProperty<T>,
                 details::StandardProperty<T>>
-            ::type Base;
+        ::type Base;
     public:
         Property(){}
         Property(const T& value) : Base(value){}
@@ -627,8 +627,16 @@ namespace details{
             inline C& get(index_t index){
                 return *get_ptr(index);
             }
+
+            inline C const & get(index_t index) const {
+                return *get_ptr(index);
+            }
         private:
             inline C* get_ptr (index_t index){
+                return pool_.get_ptr(index);
+            }
+
+            inline C const * get_ptr (index_t index) const {
                 return pool_.get_ptr(index);
             }
 
@@ -651,11 +659,11 @@ namespace details{
 
                 Id(index_t index, version_t version) : index_(index), version_(version){}
 
-                inline bool operator ==(const Id & rhs){
+                inline bool operator == (const Id & rhs) const {
                     return index_ == rhs.index_ && version_ == rhs.version_;
                 }
 
-                inline bool operator != (const Id & rhs){
+                inline bool operator != (const Id & rhs) const {
                     return index_ != rhs.index_ || version_ != rhs.version_;
                 }
 
@@ -663,7 +671,15 @@ namespace details{
                     return index_;
                 }
 
+                inline index_t index() const {
+                    return index_;
+                }
+
                 inline version_t version(){
+                    return version_;
+                }
+
+                inline version_t version() const {
                     return version_;
                 }
 
@@ -674,7 +690,7 @@ namespace details{
                 friend class EntityManager;
             };
 
-            Entity(EntityManager* manager, Id id) :
+            Entity(EntityManager * manager, Id id) :
                     manager_(manager),
                     id_(id){
             }
@@ -687,23 +703,32 @@ namespace details{
                 return id_;
             };
 
-            inline Entity& operator =(const Entity& rhs){
+            Id const & id() const{
+                return id_;
+            };
+
+            inline Entity& operator = (const Entity& rhs){
                 manager_ = rhs.manager_;
                 id_ = rhs.id_;
                 return *this;
             }
 
-            inline bool operator ==(const Entity& rhs){
+            inline bool operator ==(const Entity& rhs) const {
                 return id_ == rhs.id_;
             }
 
-            inline bool operator != (const Entity& rhs){
+            inline bool operator != (const Entity& rhs) const {
                 return id_ != rhs.id_;
             }
 
             /// Returns the requested component, or error if it doesn't exist
             template<typename C>
             inline C& get(){
+                return manager_->get_component<C>(*this);
+            }
+
+            template<typename C>
+            inline C const & get() const{
                 return manager_->get_component<C>(*this);
             }
 
@@ -730,10 +755,23 @@ namespace details{
                 return reinterpret_cast<T&>(*this);
             }
 
+            template<typename T>
+            inline T const & as() const {
+                ECS_ASSERT_IS_ENTITY(T);
+                ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
+                assert(has(T::mask()) && "Entity doesn't have required components for this EntityAlias");
+                return reinterpret_cast<T const &>(*this);
+            }
+
             /// Assume that this entity has provided Components
             /// Use for faster component access calls
             template<typename ...Components>
             inline EntityAlias<Components...>& assume(){
+                return as<EntityAlias<Components...>>();
+            }
+
+            template<typename ...Components>
+            inline EntityAlias<Components...> const & assume() const{
                 return as<EntityAlias<Components...>>();
             }
 
@@ -763,9 +801,21 @@ namespace details{
                 return manager_->has_component<Components ...>(*this);
             }
 
+            template<typename... Components>
+            inline bool has() const{
+                return manager_->has_component<Components ...>(*this);
+            }
+
             /// Returns whether an entity is an entity alias or not
             template<typename T>
             inline bool is(){
+                ECS_ASSERT_IS_ENTITY(T);
+                ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
+                return has(T::mask());
+            }
+
+            template<typename T>
+            inline bool is() const{
                 ECS_ASSERT_IS_ENTITY(T);
                 ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
                 return has(T::mask());
@@ -776,8 +826,17 @@ namespace details{
                 return manager_->is_valid(*this);
             }
 
+            inline bool is_valid() const{
+                return manager_->is_valid(*this);
+            }
+
             template <typename ...Components>
             std::tuple<Components& ...> unpack() {
+                return std::forward_as_tuple(get<Components>()...);
+            }
+
+            template <typename ...Components>
+            std::tuple<Components const & ...> unpack() const{
                 return std::forward_as_tuple(get<Components>()...);
             }
 
@@ -785,6 +844,9 @@ namespace details{
 
             /// Return true if entity has all specified compoents. False otherwise
             inline bool has(ComponentMask check_mask){
+                return manager_->has_component(*this, check_mask);
+            }
+            inline bool has(ComponentMask check_mask) const {
                 return manager_->has_component(*this, check_mask);
             }
             inline ComponentMask& mask(){
@@ -797,20 +859,27 @@ namespace details{
 
         template<typename T>
         class Iterator : public std::iterator<std::input_iterator_tag, Entity::Id>{
+            typedef typename std::remove_reference<typename std::remove_const<T>::type>::type T_no_ref;
         public:
 
             Iterator(EntityManager* manager, ComponentMask mask, bool begin = true) :
-                manager_(manager),
-                mask_(mask){
+                    manager_(manager),
+                    mask_(mask){
                 // Must be pool size because of potential holes
                 size_ = manager_->entity_versions_.size();
-                if(!begin) cursor_ = size_;
+                if(!begin) {
+                    cursor_ = size_;
+                }
                 next();
             };
 
-            Iterator(const Iterator& it) :
-                manager_(it.manager_),
-                cursor_(it.cursor_) {};
+            Iterator(const Iterator& it) : Iterator(it.manager_, it.cursor_) {};
+
+            Iterator& operator = (const Iterator& rhs) {
+                manager_ = rhs.manager_;
+                cursor_ = rhs.cursor_;
+                return *this;
+            }
 
             Iterator& operator ++(){
                 ++cursor_;
@@ -827,10 +896,14 @@ namespace details{
             }
 
             inline T operator*() {
-                return entity().template as<T>();
+                return entity().template as<T_no_ref>();
             }
 
-            inline index_t index(){
+            inline T const operator*() const {
+                return entity().template as<T_no_ref>();
+            }
+
+            inline index_t index() const {
                 return cursor_;
             }
 
@@ -846,9 +919,13 @@ namespace details{
                 return manager_->get(index());
             }
 
+            inline const Entity entity() const {
+                return manager_->get(index());
+            }
+
             EntityManager *manager_;
             ComponentMask mask_;
-            index_t cursor_ = 0;
+            size_t cursor_ = 0;
             size_t size_;
         }; //Iterator
 
@@ -856,24 +933,27 @@ namespace details{
         class View{
             ECS_ASSERT_IS_ENTITY(T)
         public:
+            typedef Iterator<T> iterator;
+            typedef Iterator<T const &> const_iterator;
+
             View(EntityManager* manager, ComponentMask mask) :
                     manager_(manager),
                     mask_(mask){}
 
-            Iterator<T> begin(){
-                return Iterator<T>(manager_, mask_, true);
+            iterator begin(){
+                return iterator(manager_, mask_, true);
             }
 
-            Iterator<T> end(){
-                return Iterator<T>(manager_, mask_, false);
+            iterator end(){
+                return iterator(manager_, mask_, false);
             }
 
-            const Iterator<T> begin() const{
-                return Iterator<T>(manager_, mask_, true);
+            const_iterator begin() const{
+                return const_iterator(manager_, mask_, true);
             }
 
-            const Iterator<T> end() const{
-                return Iterator<T>(manager_, mask_, false);
+            const_iterator end() const{
+                return const_iterator(manager_, mask_, false);
             }
 
             inline index_t count(){
@@ -882,6 +962,11 @@ namespace details{
                     count ++;
                 }
                 return count;
+            }
+
+            template<typename ...Components>
+            View<T> with(){
+                return View<T>(manager_, component_mask <Components...>() | mask_);
             }
 
         protected:
@@ -899,7 +984,7 @@ namespace details{
             BaseEntityAlias(){}
             BaseEntityAlias(const BaseEntityAlias & other) : entity_(other.entity_){}
 
-            EntityManager& manager() { return *manager_; }
+            EntityManager& entities() { return *manager_; }
         private:
             union{
                 EntityManager* manager_;
@@ -928,20 +1013,23 @@ namespace details{
                 return entity_;
             }
 
+            inline operator Entity const & () const {
+                return entity_;
+            }
+
             Entity::Id & id(){
                 return entity_.id();
             };
 
-            inline Entity& operator = (const Entity& rhs){
-                entity_ = rhs;
-                return *this;
-            }
+            Entity::Id const & id() const{
+                return entity_.id();
+            };
 
-            inline bool operator ==(const Entity& rhs){
+            inline bool operator ==(const Entity& rhs) const {
                 return entity_ == rhs;
             }
 
-            inline bool operator != (const Entity& rhs){
+            inline bool operator != (const Entity& rhs) const {
                 return entity_ != rhs;
             }
 
@@ -952,8 +1040,18 @@ namespace details{
             }
 
             template<typename C>
+            inline typename std::enable_if<is_component<C>::value, C const &>::type get() const{
+                return manager_->get_component_fast<C>(entity_);
+            }
+
+            template<typename C>
             inline typename std::enable_if<!is_component<C>::value, C&>::type get(){
-                return manager_->get_component<C>(entity_);
+                return entity_.get<C>();
+            }
+
+            template<typename C>
+            inline typename std::enable_if<!is_component<C>::value, C const &>::type get() const{
+                return entity_.get<C>();
             }
 
             /// Set the requested component, if old component exist,
@@ -981,10 +1079,20 @@ namespace details{
                 return entity_.as<T>();
             }
 
+            template<typename T>
+            inline T const & as() const{
+                return entity_.as<T>();
+            }
+
             /// Assume that this entity has provided Components
             /// Use for faster component access calls
             template<typename ...Components_>
             inline EntityAlias<Components_...>& assume(){
+                return entity_.assume<Components_...>();
+            }
+
+            template<typename ...Components_>
+            inline EntityAlias<Components_...> const & assume() const{
                 return entity_.assume<Components_...>();
             }
 
@@ -1019,9 +1127,19 @@ namespace details{
                 return entity_.has<Components_...>();
             }
 
+            template<typename... Components_>
+            inline bool has() const{
+                return entity_.has<Components_...>();
+            }
+
             /// Returns whether an entity is an entity alias or not
             template<typename T>
             inline bool is(){
+                return entity_.is<T>();
+            }
+
+            template<typename T>
+            inline bool is() const{
                 return entity_.is<T>();
             }
 
@@ -1030,12 +1148,25 @@ namespace details{
                 return entity_.is_valid();
             }
 
+            inline bool is_valid() const{
+                return entity_.is_valid();
+            }
+
             template <typename ...Components_>
             std::tuple<Components_& ...> unpack() {
                 return entity_.unpack<Components_...>();
             }
 
+            template <typename ...Components_>
+            std::tuple<Components_ const & ...> unpack() const {
+                return entity_.unpack<Components_...>();
+            }
+
             std::tuple<Components& ...> unpack() {
+                return entity_.unpack<Components...>();
+            }
+
+            std::tuple<Components const & ...> unpack() const {
                 return entity_.unpack<Components...>();
             }
 
@@ -1228,7 +1359,7 @@ namespace details{
             //When arg is component, access component
             template<typename C>
             static inline auto get_arg(EntityManager& manager, index_t index) ->
-                typename std::enable_if<!std::is_same<C, Entity>::value, C&>::type{
+            typename std::enable_if<!std::is_same<C, Entity>::value, C&>::type{
                 return manager.get_component_fast<C>(index);
             }
 
@@ -1297,6 +1428,11 @@ namespace details{
         }
 
         template<typename C>
+        inline ComponentManager<C> const & get_component_manager_fast() const {
+            return *reinterpret_cast<ComponentManager<C>*>(component_managers_[component_index<C>()]);
+        }
+
+        template<typename C>
         inline ComponentManager<C>& get_component_manager(){
             auto index = component_index<C>();
             if(component_managers_.size() <= index){
@@ -1309,21 +1445,44 @@ namespace details{
         }
 
         template<typename C>
+        inline ComponentManager<C> const & get_component_manager() const{
+            auto index = component_index<C>();
+            assert(component_managers_.size() > index && component_managers_[index] == nullptr &&
+                   "Component manager not created");
+            return *reinterpret_cast<ComponentManager<C>*>(component_managers_[index]);
+        }
+
+        template<typename C>
         inline C& get_component(Entity& entity){
             assert(has_component<C>(entity) && "Entity doesn't have this component attached");
             return get_component_manager<C>().get(entity.id_.index_);
         }
 
-        /// Get component fast, no error checks. Use if it is already known that Entity has Component
         template<typename C>
-        inline C& get_component_fast(Entity& entity){
-            return get_component_fast<C>(entity.id_.index_);
+        inline C const & get_component(Entity const & entity) const{
+            assert(has_component<C>(entity) && "Entity doesn't have this component attached");
+            return get_component_manager<C>().get(entity.id_.index_);
+        }
+
+        template<typename C>
+        inline C& get_component_fast(index_t index){
+            return get_component_manager_fast<C>().get(index);
+        }
+
+        template<typename C>
+        inline C const & get_component_fast(index_t index) const {
+            return get_component_manager_fast<C>().get(index);
         }
 
         /// Get component fast, no error checks. Use if it is already known that Entity has Component
         template<typename C>
-        inline C& get_component_fast(index_t index){
-            return get_component_manager_fast<C>().get(index);
+        inline C& get_component_fast(Entity& entity){
+            return get_component_manager_fast<C>().get(entity.id_.index_);
+        }
+
+        template<typename C>
+        inline C const & get_component_fast(Entity const & entity) const{
+            return get_component_manager_fast<C>().get(entity.id_.index_);
         }
 
         /// Use to create a component tmp that is assignable. Call the right constructor
@@ -1339,7 +1498,7 @@ namespace details{
         typename std::enable_if<
                 !std::is_constructible<C,Args...>::value &&
                 !std::is_base_of<details::BaseProperty, C>::value,
-        C>::type {
+                C>::type {
             return C{std::forward<Args>(args) ...};
         }
 
@@ -1350,10 +1509,10 @@ namespace details{
         typename std::enable_if<
                 !std::is_constructible<C,Args...>::value &&
                 std::is_base_of<details::BaseProperty, C>::value,
-        C>::type {
+                C>::type {
             static_assert(sizeof...(Args) == 1 , ECS_ASSERT_MSG_ONLY_ONE_ARGS_PROPERTY_CONSTRUCTOR);
             static_assert(sizeof(C) == sizeof(std::tuple<Args...>),
-                  "Cannot initilize component property. Please provide a constructor");
+                          "Cannot initilize component property. Please provide a constructor");
             auto tmp = typename C::ValueType(std::forward<Args>(args)...);
             return *reinterpret_cast<C*>(&tmp);
         }
@@ -1417,6 +1576,11 @@ namespace details{
             return (mask(entity) & component_mask) == component_mask;
         }
 
+        inline bool has_component(Entity const & entity, ComponentMask component_mask) const{
+            ECS_ASSERT_VALID_ENTITY(entity);
+            return (mask(entity) & component_mask) == component_mask;
+        }
+
         inline bool has_component(index_t index, ComponentMask component_mask){
             return (mask(index) & component_mask) == component_mask;
         }
@@ -1427,14 +1591,18 @@ namespace details{
         }
 
         template<typename ...Components>
-        inline bool has_component(index_t index){
-            return has_component(index, component_mask<Components...>());
+        inline bool has_component(Entity const & entity) const {
+            return has_component(entity, component_mask<Components...>());
         }
 
-        inline bool is_valid(Entity &entity){
-            sortFreeList();
-            return !binary_search(free_list_.begin(), free_list_.end(), entity.id().index_) &&
-            entity.id().index_ < entity_versions_.size() && entity == get(entity.id().index_);
+        inline bool is_valid(Entity const &entity){
+            return  entity.id_.index_ < entity_versions_.size() &&
+                    entity.id_.version_ == entity_versions_[entity.id_.index_];
+        }
+
+        inline bool is_valid(Entity const &entity) const{
+            return  entity.id_.index_ < entity_versions_.size() &&
+                    entity.id_.version_ == entity_versions_[entity.id_.index_];
         }
 
         inline void destroy(Entity& entity){
@@ -1448,7 +1616,15 @@ namespace details{
             return mask(entity.id_.index_);
         }
 
+        inline ComponentMask const & mask(Entity const & entity) const{
+            return mask(entity.id_.index_);
+        }
+
         inline ComponentMask& mask(index_t index){
+            return component_masks_[index];
+        }
+
+        inline ComponentMask const & mask(index_t index) const{
             return component_masks_[index];
         }
 
@@ -1565,6 +1741,10 @@ namespace details{
     using System = SystemManager::System;
 } // namespace ecs
 
+///---------------------------------------------------------------------
+/// This will allow a property to be streamed into a input and output
+/// stream.
+///---------------------------------------------------------------------
 namespace std{
     template<typename T>
     ostream& operator<<(ostream& os, const ecs::Property<T>& obj) {
@@ -1576,3 +1756,18 @@ namespace std{
         return is >> obj.value;
     }
 } //namespace std
+
+///---------------------------------------------------------------------
+/// This will enable properties to be added to a string
+///---------------------------------------------------------------------
+template<typename T>
+std::string operator+ (const std::string& lhs, const ecs::Property<T>& rhs) { return lhs + rhs.value; }
+
+template<typename T>
+std::string operator+ (std::string&&      lhs, ecs::Property<T>&&      rhs) { return lhs + rhs.value; }
+
+template<typename T>
+std::string operator+ (std::string&&      lhs, const ecs::Property<T>& rhs) { return lhs + rhs.value; }
+
+template<typename T>
+std::string operator+ (const std::string& lhs, ecs::Property<T>&&      rhs) { return lhs + rhs.value; }
