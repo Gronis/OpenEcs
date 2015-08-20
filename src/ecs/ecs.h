@@ -38,7 +38,7 @@
 #define ECS_DEFAULT_CHUNK_SIZE 8192
 #endif
 
-#define ECS_ASSERT_IS_FUNCTION(T)                                                           \
+#define ECS_ASSERT_IS_CALLABLE(T)                                                           \
         static_assert(details::is_callable<T>::value,                                       \
         "Provide a function or lambda expression");                                         \
 
@@ -1309,7 +1309,7 @@ namespace ecs{
         // example: entities.with([] (Position& pos) {  });
         template<typename T>
         void with(T lambda){
-            ECS_ASSERT_IS_FUNCTION(T);
+            ECS_ASSERT_IS_CALLABLE(T);
             with_<T>::for_each(*this, lambda);
         }
 
@@ -1322,7 +1322,7 @@ namespace ecs{
 
         template<typename T>
         void fetch_every(T lambda){
-            ECS_ASSERT_IS_FUNCTION(T);
+            ECS_ASSERT_IS_CALLABLE(T);
             typedef details::function_traits<T> function;
             static_assert(function::arg_count == 1, "Lambda or function must only have one argument");
             typedef typename function::template arg_remove_ref<0> entity_interface_t;
