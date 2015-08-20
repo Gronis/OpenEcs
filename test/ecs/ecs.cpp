@@ -16,7 +16,10 @@
 /// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <iostream>
+#include <exception>
 #include "common/thirdparty/catch.hpp"
+
+#define ECS_ASSERT(Expr) if(!(Expr)) throw std::exception();
 
 #include "ecs/ecs.h"
 
@@ -154,14 +157,11 @@ SCENARIO("Testing ecs framework, unittests"){
                     REQUIRE(entity.get<Height>().value == 15);
                     REQUIRE(entity.get<Weight>().value == 20);
                 }
-                // TODO: Find a way to test assert
-                /*
                 THEN("Accessing other components should not work"){
                     REQUIRE_THROWS(entity.get<Clothes>());
                     REQUIRE_THROWS(entity.get<Hat>());
                     REQUIRE_THROWS(entity.get<Shoes>());
                 }
-                 */
                 THEN("Only one Health component should exist"){
                     REQUIRE(health_component_count == 1);
                 }
@@ -174,8 +174,6 @@ SCENARIO("Testing ecs framework, unittests"){
                         REQUIRE(!entity.has<Health>());
                     }
                 }
-                // TODO: Find a way to test assert
-                /*
                 AND_WHEN("When removing the Health component twice"){
                     entity.remove<Health>();
                     THEN("It should not work"){
@@ -188,7 +186,6 @@ SCENARIO("Testing ecs framework, unittests"){
                         REQUIRE_THROWS(entity.remove<Health>());
                     }
                 }
-                */
                 AND_WHEN("Destroying the entity"){
                     entity.destroy();
                     THEN("No Health component should exist"){
@@ -210,15 +207,12 @@ SCENARIO("Testing ecs framework, unittests"){
                     }
                 }
             }
-            // TODO: Find a way to test assert
-            /*
             WHEN("Adding the same component twice with \"add\" method"){
                 entity.add<Health>(1);
                 THEN("Should not work"){
                     REQUIRE_THROWS(entity.add<Health>(2));
                 }
             }
-            */
             WHEN("Adding the same component twice with \"set\" method"){
                 entity.set<Health>(1);
                 THEN("Should work"){
@@ -241,15 +235,12 @@ SCENARIO("Testing ecs framework, unittests"){
                     REQUIRE(!entity.is_valid());
                 }
             }
-            // TODO: Find a way to test assert
-            /*
             WHEN("Destroying entity twice"){
                 entity.destroy();
                 THEN("It should not work"){
                     REQUIRE_THROWS(entity.destroy());
                 }
             }
-             */
             WHEN("Destroying entity once and replace it with a new entity"){
                 entity.destroy();
                 Entity entity2 = entities.create();

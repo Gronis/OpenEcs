@@ -23,6 +23,21 @@
 #include <cassert>
 #include <iostream>
 
+/// How is an assertion implemented?
+#ifndef ECS_ASSERT
+#define ECS_ASSERT(Expr) assert(Expr)
+#endif
+
+/// How many types of components may be added?
+#ifndef ECS_MAX_NUM_OF_COMPONENTS
+#define ECS_MAX_NUM_OF_COMPONENTS 64
+#endif
+
+/// How big are the component building blocks?
+#ifndef ECS_DEFAULT_CHUNK_SIZE
+#define ECS_DEFAULT_CHUNK_SIZE 8192
+#endif
+
 #define ECS_ASSERT_IS_FUNCTION(T)                                                           \
         static_assert(details::is_callable<T>::value,                                       \
         "Provide a function or lambda expression");                                         \
@@ -37,7 +52,7 @@
         #T " should not include new variables, add them as Components instead.");           \
 
 #define ECS_ASSERT_VALID_ENTITY(E)                                                          \
-        assert(is_valid(E) && "Entity is no longer valid");                                 \
+        ECS_ASSERT(is_valid(E) && "Entity is no longer valid");                                 \
 
 #define ECS_ASSERT_IS_SYSTEM(S)                                                             \
             static_assert(std::is_base_of<System, S>::value,                                \
@@ -47,11 +62,6 @@
             "Creating a property component should only take 1 argument. "                   \
             "If component should initilize more members, provide a "                        \
             "constructor to initilize property component correctly"                         \
-
-#ifndef ECS_MAX_NUM_OF_COMPONENTS
-#define ECS_MAX_NUM_OF_COMPONENTS 64
-#endif
-#define ECS_DEFAULT_CHUNK_SIZE 8192
 
 namespace ecs{
 
@@ -232,18 +242,18 @@ namespace ecs{
             Pool(size_t chunk_size) : BasePool(sizeof(T), chunk_size) { };
 
             virtual void destroy(index_t index) override {
-                assert(index < size_ && "Pool has not allocated memory for this index.");
+                ECS_ASSERT(index < size_ && "Pool has not allocated memory for this index.");
                 T *ptr = get_ptr(index);
                 ptr->~T();
             }
 
             inline T *get_ptr(index_t index) {
-                assert(index < capacity_ && "Pool has not allocated memory for this index.");
+                ECS_ASSERT(index < capacity_ && "Pool has not allocated memory for this index.");
                 return reinterpret_cast<T *>(chunks_[index / chunk_size_] + (index % chunk_size_) * element_size_);
             }
 
             const inline T *get_ptr(index_t index) const {
-                assert(index < capacity_ && "Pool has not allocated memory for this index.");
+                ECS_ASSERT(index < capacity_ && "Pool has not allocated memory for this index.");
                 return reinterpret_cast<T *>(chunks_[index / chunk_size_] + (index % chunk_size_) * element_size_);
             }
 
@@ -751,7 +761,7 @@ namespace ecs{
             inline T& as(){
                 ECS_ASSERT_IS_ENTITY(T);
                 ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
-                assert(has(T::mask()) && "Entity doesn't have required components for this EntityAlias");
+                ECS_ASSERT(has(T::mask()) && "Entity doesn't have required components for this EntityAlias");
                 return reinterpret_cast<T&>(*this);
             }
 
@@ -759,7 +769,7 @@ namespace ecs{
             inline T const & as() const {
                 ECS_ASSERT_IS_ENTITY(T);
                 ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
-                assert(has(T::mask()) && "Entity doesn't have required components for this EntityAlias");
+                ECS_ASSERT(has(T::mask()) && "Entity doesn't have required components for this EntityAlias");
                 return reinterpret_cast<T const &>(*this);
             }
 
@@ -858,7 +868,7 @@ namespace ecs{
         }; //Entity
 
         template<typename T>
-        class Iterator : public std::iterator<std::input_iterator_tag, Entity::Id>{
+        class Iterator : public std::iterator<std::input_iterator_tag, typename std::remove_reference<T>::type>{
             typedef typename std::remove_reference<typename std::remove_const<T>::type>::type T_no_ref;
         public:
 
@@ -870,7 +880,7 @@ namespace ecs{
                 if(!begin) {
                     cursor_ = size_;
                 }
-                next();
+                find_next();
             };
 
             Iterator(const Iterator& it) : Iterator(it.manager_, it.cursor_) {};
@@ -883,7 +893,7 @@ namespace ecs{
 
             Iterator& operator ++(){
                 ++cursor_;
-                next();
+                find_next();
                 return *this;
             }
 
@@ -908,8 +918,8 @@ namespace ecs{
             }
 
         private:
-            void next(){
-                //find next component with components
+            void find_next(){
+                //find find_next component with components
                 while (cursor_ < size_ && (manager_->component_masks_[cursor_] & mask_) != mask_){
                     ++cursor_;
                 }
@@ -1269,7 +1279,8 @@ namespace ecs{
             ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
             Entity entity = create();
             T* entity_alias = new(&entity) T(std::forward<Args>(args)...);
-            assert(entity.has(T::mask()));
+            ECS_ASSERT(entity.has(T::mask()) &&
+                           "Every required component must be added when creating an Entity Alias");
             return *entity_alias;
         }
 
@@ -1283,7 +1294,7 @@ namespace ecs{
             typedef typename T::Type Type;
             Entity entity = create();
             Type* entity_alias = new(&entity) Type(std::forward<Args>(args)...);
-            assert(entity.has(T::mask()));
+            ECS_ASSERT(entity.has(T::mask()));
             return *reinterpret_cast<T*>(entity_alias);
         }
 
@@ -1326,7 +1337,7 @@ namespace ecs{
 
         inline Entity operator[] (Entity::Id id){
             Entity entity = get(id);
-            assert(id == entity.id() && "Id is no longer valid (Entity was destroyed)");
+            ECS_ASSERT(id == entity.id() && "Id is no longer valid (Entity was destroyed)");
             return entity;
         }
 
@@ -1405,7 +1416,7 @@ namespace ecs{
 
         static size_t inc_component_counter(){
             size_t index = component_counter()++;
-            assert(index < ECS_MAX_NUM_OF_COMPONENTS && "maximum number of components exceeded.");
+            ECS_ASSERT(index < ECS_MAX_NUM_OF_COMPONENTS && "maximum number of components exceeded.");
             return index;
         }
 
@@ -1447,20 +1458,20 @@ namespace ecs{
         template<typename C>
         inline ComponentManager<C> const & get_component_manager() const{
             auto index = component_index<C>();
-            assert(component_managers_.size() > index && component_managers_[index] == nullptr &&
+            ECS_ASSERT(component_managers_.size() > index && component_managers_[index] == nullptr &&
                    "Component manager not created");
             return *reinterpret_cast<ComponentManager<C>*>(component_managers_[index]);
         }
 
         template<typename C>
         inline C& get_component(Entity& entity){
-            assert(has_component<C>(entity) && "Entity doesn't have this component attached");
+            ECS_ASSERT(has_component<C>(entity) && "Entity doesn't have this component attached");
             return get_component_manager<C>().get(entity.id_.index_);
         }
 
         template<typename C>
         inline C const & get_component(Entity const & entity) const{
-            assert(has_component<C>(entity) && "Entity doesn't have this component attached");
+            ECS_ASSERT(has_component<C>(entity) && "Entity doesn't have this component attached");
             return get_component_manager<C>().get(entity.id_.index_);
         }
 
@@ -1520,7 +1531,7 @@ namespace ecs{
         template<typename C, typename ...Args>
         inline C& create_component(Entity &entity, Args &&... args){
             ECS_ASSERT_VALID_ENTITY(entity);
-            assert(!has_component<C>(entity) && "Entity already has this component attached");
+            ECS_ASSERT(!has_component<C>(entity) && "Entity already has this component attached");
             C& component = get_component_manager<C>().create(entity.id_.index_, std::forward<Args>(args) ...);
             entity.mask().set(component_index<C>());
             return component;
@@ -1529,14 +1540,14 @@ namespace ecs{
         template<typename C>
         inline void remove_component(Entity& entity){
             ECS_ASSERT_VALID_ENTITY(entity);
-            assert(has_component<C>(entity) && "Entity doesn't have component attached");
+            ECS_ASSERT(has_component<C>(entity) && "Entity doesn't have component attached");
             get_component_manager<C>().remove(entity.id_.index_);
         }
 
         template<typename C>
         inline void remove_component_fast(Entity& entity){
             ECS_ASSERT_VALID_ENTITY(entity);
-            assert(has_component<C>(entity) && "Entity doesn't have component attached");
+            ECS_ASSERT(has_component<C>(entity) && "Entity doesn't have component attached");
             get_component_manager_fast<C>().remove(entity.id_.index_);
         }
 
@@ -1567,7 +1578,7 @@ namespace ecs{
         template<typename C, typename ...Args>
         inline C& set_component_fast(Entity& entity, Args && ... args){
             ECS_ASSERT_VALID_ENTITY(entity);
-            assert(entity.has<C>() && "Entity does not have component attached");
+            ECS_ASSERT(entity.has<C>() && "Entity does not have component attached");
             return get_component_fast<C>(entity) = create_tmp_component<C>(std::forward<Args>(args)...);
         }
 
@@ -1684,7 +1695,7 @@ namespace ecs{
         template<typename S, typename ...Args>
         S& add(Args &&... args){
             ECS_ASSERT_IS_SYSTEM(S);
-            assert(!exists<S>() && "System already exists");
+            ECS_ASSERT(!exists<S>() && "System already exists");
             systems_.resize(system_index<S>() + 1);
             S* system = new S(std::forward<Args>(args) ...);
             system->manager_ = this;
@@ -1696,7 +1707,7 @@ namespace ecs{
         template<typename S>
         void remove(){
             ECS_ASSERT_IS_SYSTEM(S);
-            assert(exists<S>() && "System does not exist");
+            ECS_ASSERT(exists<S>() && "System does not exist");
             delete systems_[system_index<S>()];
             systems_[system_index<S>()] = nullptr;
             for (auto it = order_.begin(); it != order_.end(); ++it) {
