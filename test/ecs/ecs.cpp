@@ -16,10 +16,10 @@
 /// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <iostream>
-#include <exception>
+#include <stdexcept>
 #include "common/thirdparty/catch.hpp"
 
-#define ECS_ASSERT(Expr) if(!(Expr)) throw std::exception();
+#define ECS_ASSERT(Expr, Msg) if(!(Expr)) throw std::runtime_error(Msg);
 
 #include "ecs/ecs.h"
 
@@ -650,6 +650,32 @@ SCENARIO("Testing ecs framework, unittests"){
                 REQUIRE(character.get<Weight>() == 80);
             }
         }
+
+        WHEN("Adding 1 entity, 1 car, then 1 entity in sequence"){
+            Entity e1 = entities.create();
+            Car c1 = entities.create<Car>();
+            Entity e2 = entities.create();
+            THEN("They should be assigned to indexes e1 = [0], car = [64] e2 = [1]"){
+                REQUIRE(e1.id().index() == 0);
+                REQUIRE(e2.id().index() == 1);
+                REQUIRE(c1.id().index() == ECS_CACHE_LINE_SIZE);
+            }
+        }
+
+        WHEN("Adding 1 entity, 1 car, then 64 entities, then 1 car in sequence"){
+            Entity e1 = entities.create();
+            Car c1 = entities.create<Car>();
+            std::vector<Entity> es = entities.create(64);
+            Car c2 = entities.create<Car>();
+            THEN("They should be assigned to indexes e0 = [0], car = [64] e64 = [128] ()"){
+                REQUIRE(e1.id().index() == 0);
+                REQUIRE(c1.id().index() == ECS_CACHE_LINE_SIZE);
+                REQUIRE(c2.id().index() == ECS_CACHE_LINE_SIZE + 1);
+                REQUIRE(es.back().id().index() == ECS_CACHE_LINE_SIZE * 2);
+            }
+        }
+
+        //Testing Systems
         GIVEN("A SystemManager"){
             SystemManager systems(entities);
             WHEN("Adding count car system and remove dead entities system") {

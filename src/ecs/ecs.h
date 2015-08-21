@@ -18,22 +18,28 @@
 
 #include <bitset>
 #include <vector>
+#include <map>
 #include <string>
 #include <functional>
 #include <cassert>
 #include <iostream>
 
-/// How is an assertion implemented?
-#ifndef ECS_ASSERT
-#define ECS_ASSERT(Expr) assert(Expr)
+/// The cache line size for the processor. Usually 64 bytes
+#ifndef ECS_CACHE_LINE_SIZE
+#define ECS_CACHE_LINE_SIZE 64
 #endif
 
-/// How many types of components may be added?
+/// This is how an assertion is done. Can be defined with something else if needed.
+#ifndef ECS_ASSERT
+#define ECS_ASSERT(Expr, Msg) assert(Expr && Msg)
+#endif
+
+/// The maximum number of component types the EntityManager can handle
 #ifndef ECS_MAX_NUM_OF_COMPONENTS
 #define ECS_MAX_NUM_OF_COMPONENTS 64
 #endif
 
-/// How big are the component building blocks?
+/// How many components each block of memory should contain
 #ifndef ECS_DEFAULT_CHUNK_SIZE
 #define ECS_DEFAULT_CHUNK_SIZE 8192
 #endif
@@ -52,7 +58,7 @@
         #T " should not include new variables, add them as Components instead.");           \
 
 #define ECS_ASSERT_VALID_ENTITY(E)                                                          \
-        ECS_ASSERT(is_valid(E) && "Entity is no longer valid");                                 \
+        ECS_ASSERT(is_valid(E), "Entity is no longer valid");                             \
 
 #define ECS_ASSERT_IS_SYSTEM(S)                                                             \
             static_assert(std::is_base_of<System, S>::value,                                \
@@ -242,18 +248,18 @@ namespace ecs{
             Pool(size_t chunk_size) : BasePool(sizeof(T), chunk_size) { };
 
             virtual void destroy(index_t index) override {
-                ECS_ASSERT(index < size_ && "Pool has not allocated memory for this index.");
+                ECS_ASSERT(index < size_, "Pool has not allocated memory for this index.");
                 T *ptr = get_ptr(index);
                 ptr->~T();
             }
 
             inline T *get_ptr(index_t index) {
-                ECS_ASSERT(index < capacity_ && "Pool has not allocated memory for this index.");
+                ECS_ASSERT(index < capacity_, "Pool has not allocated memory for this index.");
                 return reinterpret_cast<T *>(chunks_[index / chunk_size_] + (index % chunk_size_) * element_size_);
             }
 
             const inline T *get_ptr(index_t index) const {
-                ECS_ASSERT(index < capacity_ && "Pool has not allocated memory for this index.");
+                ECS_ASSERT(index < capacity_, "Pool has not allocated memory for this index.");
                 return reinterpret_cast<T *>(chunks_[index / chunk_size_] + (index % chunk_size_) * element_size_);
             }
 
@@ -761,7 +767,7 @@ namespace ecs{
             inline T& as(){
                 ECS_ASSERT_IS_ENTITY(T);
                 ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
-                ECS_ASSERT(has(T::mask()) && "Entity doesn't have required components for this EntityAlias");
+                ECS_ASSERT(has(T::mask()), "Entity doesn't have required components for this EntityAlias");
                 return reinterpret_cast<T&>(*this);
             }
 
@@ -769,7 +775,7 @@ namespace ecs{
             inline T const & as() const {
                 ECS_ASSERT_IS_ENTITY(T);
                 ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
-                ECS_ASSERT(has(T::mask()) && "Entity doesn't have required components for this EntityAlias");
+                ECS_ASSERT(has(T::mask()), "Entity doesn't have required components for this EntityAlias");
                 return reinterpret_cast<T const &>(*this);
             }
 
@@ -902,7 +908,7 @@ namespace ecs{
             }
 
             bool operator!=(const Iterator& rhs) const {
-                return cursor_ != rhs.cursor_;
+                return !(*this == rhs);
             }
 
             inline T operator*() {
@@ -919,18 +925,17 @@ namespace ecs{
 
         private:
             void find_next(){
-                //find find_next component with components
                 while (cursor_ < size_ && (manager_->component_masks_[cursor_] & mask_) != mask_){
                     ++cursor_;
                 }
             }
 
             inline Entity entity() {
-                return manager_->get(index());
+                return manager_->get_entity_from_index(index());
             }
 
             inline const Entity entity() const {
-                return manager_->get(index());
+                return manager_->get_entity_from_index(index());
             }
 
             EntityManager *manager_;
@@ -969,7 +974,7 @@ namespace ecs{
             inline index_t count(){
                 index_t count = 0;
                 for (auto it = begin(); it != end(); ++it) {
-                    count ++;
+                    ++count;
                 }
                 return count;
             }
@@ -1003,6 +1008,15 @@ namespace ecs{
             template<typename ... Components>
             friend class EntityAlias;
         }; //BaseEntityAlias
+
+
+        // Class for accessing where to put entities with specific components.
+        struct IndexAccessor {
+            // Used to store next available index there are within each block
+            std::vector<index_t> last_index;
+            // Used to store all indexes that are free
+            std::vector<index_t> free_list;
+        };
 
     public:
         template<typename ...Components>
@@ -1228,27 +1242,19 @@ namespace ecs{
             component_managers_.clear();
             component_masks_.clear();
             entity_versions_.clear();
-            free_list_.clear();
+            next_free_indexes_.clear();
+            component_mask_to_index_accessor_.clear();
+            index_to_component_mask.clear();
         }
 
         // Cretate a new Entity and return handle
         Entity create(){
-            index_t index;
-            size_t entity_count = count();
-            entity_versions_.resize(entity_count + 1);
-            component_masks_.resize(entity_count + 1, ComponentMask(0));
-            //see if there are holes in memory, allocate new element at first hole
-            if (free_list_.empty()) {
-                index = entity_count;
-            } else{
-                index = free_list_.back();
-                free_list_.pop_back();
-            }
-            return get(index);
+            return create_with_mask(ComponentMask(0));
         }
 
         std::vector<Entity> create(const size_t num_of_entities){
             std::vector<Entity> new_entities;
+            /*
             index_t index;
             size_t entities_left = num_of_entities;
             size_t entity_count = count();
@@ -1269,6 +1275,11 @@ namespace ecs{
                 --entities_left;
             }
             return new_entities;
+            */
+            for (size_t i = 0; i < num_of_entities; ++i) {
+                new_entities.push_back(create());
+            }
+            return new_entities;
         }
 
         /// If EntityAlias is constructable with Args...
@@ -1277,10 +1288,11 @@ namespace ecs{
         typename std::enable_if<std::is_constructible<T, Args...>::value, T>::type{
             ECS_ASSERT_IS_ENTITY(T);
             ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
-            Entity entity = create();
+            ComponentMask mask = T::mask();
+            Entity entity = create_with_mask(mask);
             T* entity_alias = new(&entity) T(std::forward<Args>(args)...);
-            ECS_ASSERT(entity.has(T::mask()) &&
-                           "Every required component must be added when creating an Entity Alias");
+            ECS_ASSERT(entity.has(mask),
+                       "Every required component must be added when creating an Entity Alias");
             return *entity_alias;
         }
 
@@ -1294,7 +1306,8 @@ namespace ecs{
             typedef typename T::Type Type;
             Entity entity = create();
             Type* entity_alias = new(&entity) Type(std::forward<Args>(args)...);
-            ECS_ASSERT(entity.has(T::mask()));
+            ECS_ASSERT(entity.has(T::mask()),
+                       "Every required component must be added when creating an Entity Alias");
             return *reinterpret_cast<T*>(entity_alias);
         }
 
@@ -1332,17 +1345,17 @@ namespace ecs{
         }
 
         inline Entity operator[] (index_t index){
-            return get(index);
+            return get_entity_from_index(index);
         }
 
         inline Entity operator[] (Entity::Id id){
             Entity entity = get(id);
-            ECS_ASSERT(id == entity.id() && "Id is no longer valid (Entity was destroyed)");
+            ECS_ASSERT(id == entity.id(), "Id is no longer valid (Entity was destroyed)");
             return entity;
         }
 
         inline size_t count() {
-            return entity_versions_.size() - free_list_.size();
+            return count_;
         }
 
     private:
@@ -1378,12 +1391,51 @@ namespace ecs{
             template<typename C>
             static inline auto get_arg(EntityManager& manager, index_t index) ->
             typename std::enable_if<std::is_same<C, Entity>::value, Entity>::type{
-                return manager.get(index);
+                return manager.get_entity_from_index(index);
             }
         };
 
         template<typename Lambda>
         using with_ = with_t<details::function_traits<Lambda>::arg_count, Lambda>;
+
+        Entity create_with_mask(ComponentMask mask){
+            ++count_;
+            index_t index = find_new_entity_index(mask);
+            entity_versions_.resize(index + 1);
+            component_masks_.resize(index + 1, ComponentMask(0));
+            return get_entity_from_index(index);
+        }
+
+        // Find a proper index for a new entity with components
+        index_t find_new_entity_index(ComponentMask mask){
+            auto mask_as_ulong = mask.to_ulong();
+            IndexAccessor &index_accessor = component_mask_to_index_accessor_[mask_as_ulong];
+            //See if we can use old indexes for destroyed entities via free list
+            if(!index_accessor.free_list.empty()){
+                auto index = index_accessor.free_list.back();
+                index_accessor.free_list.pop_back();
+                return index;
+            }
+            // EntityManager has created similar entities already
+            if(!index_accessor.last_index.empty()){
+                //No free_indexes in free list (removed entities), find a new index
+                //at last block, if that block has free slots
+                auto& block_index = index_accessor.last_index[index_accessor.last_index.size() - 1];
+                auto& current     = next_free_indexes_[block_index];
+                // If block has empty slot, use it
+                if(ECS_CACHE_LINE_SIZE > current){
+                    return (current++) + ECS_CACHE_LINE_SIZE * block_index;
+                }
+            }
+            // First time this kind of entity is created by EntityManager or
+            // there are no more blocks. Create a new one
+            index_accessor.last_index.push_back(block_count_);
+            next_free_indexes_.resize(block_count_ + 1);
+            index_to_component_mask.resize(block_count_ + 1);
+            next_free_indexes_[block_count_] = 1; // <- point at next free index
+            index_to_component_mask[block_count_] = mask_as_ulong;
+            return (block_count_++) * ECS_CACHE_LINE_SIZE;
+        }
 
         //C1 should not be Entity
         template<typename C>
@@ -1416,7 +1468,7 @@ namespace ecs{
 
         static size_t inc_component_counter(){
             size_t index = component_counter()++;
-            ECS_ASSERT(index < ECS_MAX_NUM_OF_COMPONENTS && "maximum number of components exceeded.");
+            ECS_ASSERT(index < ECS_MAX_NUM_OF_COMPONENTS, "maximum number of components exceeded.");
             return index;
         }
 
@@ -1458,20 +1510,20 @@ namespace ecs{
         template<typename C>
         inline ComponentManager<C> const & get_component_manager() const{
             auto index = component_index<C>();
-            ECS_ASSERT(component_managers_.size() > index && component_managers_[index] == nullptr &&
+            ECS_ASSERT(component_managers_.size() > index, component_managers_[index] == nullptr &&
                    "Component manager not created");
             return *reinterpret_cast<ComponentManager<C>*>(component_managers_[index]);
         }
 
         template<typename C>
         inline C& get_component(Entity& entity){
-            ECS_ASSERT(has_component<C>(entity) && "Entity doesn't have this component attached");
+            ECS_ASSERT(has_component<C>(entity), "Entity doesn't have this component attached");
             return get_component_manager<C>().get(entity.id_.index_);
         }
 
         template<typename C>
         inline C const & get_component(Entity const & entity) const{
-            ECS_ASSERT(has_component<C>(entity) && "Entity doesn't have this component attached");
+            ECS_ASSERT(has_component<C>(entity), "Entity doesn't have this component attached");
             return get_component_manager<C>().get(entity.id_.index_);
         }
 
@@ -1531,7 +1583,7 @@ namespace ecs{
         template<typename C, typename ...Args>
         inline C& create_component(Entity &entity, Args &&... args){
             ECS_ASSERT_VALID_ENTITY(entity);
-            ECS_ASSERT(!has_component<C>(entity) && "Entity already has this component attached");
+            ECS_ASSERT(!has_component<C>(entity), "Entity already has this component attached");
             C& component = get_component_manager<C>().create(entity.id_.index_, std::forward<Args>(args) ...);
             entity.mask().set(component_index<C>());
             return component;
@@ -1540,14 +1592,14 @@ namespace ecs{
         template<typename C>
         inline void remove_component(Entity& entity){
             ECS_ASSERT_VALID_ENTITY(entity);
-            ECS_ASSERT(has_component<C>(entity) && "Entity doesn't have component attached");
+            ECS_ASSERT(has_component<C>(entity), "Entity doesn't have component attached");
             get_component_manager<C>().remove(entity.id_.index_);
         }
 
         template<typename C>
         inline void remove_component_fast(Entity& entity){
             ECS_ASSERT_VALID_ENTITY(entity);
-            ECS_ASSERT(has_component<C>(entity) && "Entity doesn't have component attached");
+            ECS_ASSERT(has_component<C>(entity), "Entity doesn't have component attached");
             get_component_manager_fast<C>().remove(entity.id_.index_);
         }
 
@@ -1578,7 +1630,7 @@ namespace ecs{
         template<typename C, typename ...Args>
         inline C& set_component_fast(Entity& entity, Args && ... args){
             ECS_ASSERT_VALID_ENTITY(entity);
-            ECS_ASSERT(entity.has<C>() && "Entity does not have component attached");
+            ECS_ASSERT(entity.has<C>(), "Entity does not have component attached");
             return get_component_fast<C>(entity) = create_tmp_component<C>(std::forward<Args>(args)...);
         }
 
@@ -1620,7 +1672,9 @@ namespace ecs{
             index_t index = entity.id().index_;
             remove_all_components(entity);
             ++entity_versions_[index];
-            free_list_.push_back(index);
+            auto& mask_as_ulong = index_to_component_mask[index / ECS_CACHE_LINE_SIZE];
+            component_mask_to_index_accessor_[mask_as_ulong].free_list.push_back(index);
+            --count_;
         }
 
         inline ComponentMask& mask(Entity& entity){
@@ -1643,12 +1697,12 @@ namespace ecs{
             return Entity(this, id);
         }
 
-        inline Entity get(index_t index){
+        inline Entity get_entity_from_index(index_t index){
             return get(Entity::Id(index, entity_versions_[index]));
         }
 
         inline void sortFreeList(){
-            std::sort(free_list_.begin(), free_list_.end());
+            //std::sort(free_list_.begin(), free_list_.end());
         }
 
         inline size_t capacity() const {
@@ -1658,7 +1712,12 @@ namespace ecs{
         std::vector<BaseManager*> component_managers_;
         std::vector<ComponentMask> component_masks_;
         std::vector<version_t> entity_versions_;
-        std::vector<index_t> free_list_;
+        std::vector<index_t> next_free_indexes_;
+        std::vector<size_t> index_to_component_mask;
+        std::map<size_t, IndexAccessor> component_mask_to_index_accessor_;
+
+        index_t block_count_ = 0;
+        index_t count_ = 0;
 
         template<typename T>
         friend class Iterator;
@@ -1695,7 +1754,7 @@ namespace ecs{
         template<typename S, typename ...Args>
         S& add(Args &&... args){
             ECS_ASSERT_IS_SYSTEM(S);
-            ECS_ASSERT(!exists<S>() && "System already exists");
+            ECS_ASSERT(!exists<S>(), "System already exists");
             systems_.resize(system_index<S>() + 1);
             S* system = new S(std::forward<Args>(args) ...);
             system->manager_ = this;
@@ -1707,7 +1766,7 @@ namespace ecs{
         template<typename S>
         void remove(){
             ECS_ASSERT_IS_SYSTEM(S);
-            ECS_ASSERT(exists<S>() && "System does not exist");
+            ECS_ASSERT(exists<S>(), "System does not exist");
             delete systems_[system_index<S>()];
             systems_[system_index<S>()] = nullptr;
             for (auto it = order_.begin(); it != order_.end(); ++it) {
