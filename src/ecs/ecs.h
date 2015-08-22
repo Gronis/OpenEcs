@@ -1285,6 +1285,14 @@ namespace ecs{
             return *reinterpret_cast<T*>(entity_alias);
         }
 
+        template<typename ...Components, typename ...Args>
+        EntityAlias<Components...> create_with(Args... args){
+            typedef EntityAlias<Components...> Type;
+            Entity entity = create_with_mask(component_mask<Components...>());
+            Type* entity_alias = new(&entity) Type(std::forward<Args>(args)...);
+            return *entity_alias;
+        }
+
         // Access a View of all entities with specified components
         template<typename ...Components>
         View<EntityAlias<Components...>> with(){

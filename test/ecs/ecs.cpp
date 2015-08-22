@@ -651,6 +651,31 @@ SCENARIO("Testing ecs framework, unittests"){
             }
         }
 
+        WHEN("Creating 1 entity with Health and mana"){
+            Entity entity = entities.create_with<Health, Mana>(10,1);
+            THEN("They should have health and mana"){
+                REQUIRE(entity.has<Health>());
+                REQUIRE(entity.has<Mana>());
+                REQUIRE(entity.get<Health>() == 10);
+                REQUIRE(entity.get<Mana>() == 1);
+            }
+        }
+        // Testing so that entities are created at appropriate locations
+        WHEN("Creating some entities with different components attached"){
+            Entity e1 = entities.create();
+            Entity e2 = entities.create_with<Health, Mana>(10,1);
+            Entity e3 = entities.create();
+            Entity e4 = entities.create_with<Health>(10);
+            Entity e5 = entities.create_with<Health, Mana>(1,10);
+            THEN("They should be placed in their appropriate locations"){
+                REQUIRE(e1.id().index() == 0);
+                REQUIRE(e2.id().index() == ECS_CACHE_LINE_SIZE);
+                REQUIRE(e3.id().index() == 1);
+                REQUIRE(e4.id().index() == ECS_CACHE_LINE_SIZE * 2);
+                REQUIRE(e5.id().index() == 1 + ECS_CACHE_LINE_SIZE);
+            }
+        }
+
         WHEN("Adding 1 entity, 1 car, then 1 entity in sequence"){
             Entity e1 = entities.create();
             Car c1 = entities.create<Car>();
