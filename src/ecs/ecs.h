@@ -1012,7 +1012,7 @@ namespace ecs{
 
         // Class for accessing where to put entities with specific components.
         struct IndexAccessor {
-            // Used to store next available index there are within each block
+            // Used to store next available index there is within each block
             std::vector<index_t> last_index;
             // Used to store all indexes that are free
             std::vector<index_t> free_list;
@@ -1253,33 +1253,7 @@ namespace ecs{
         }
 
         std::vector<Entity> create(const size_t num_of_entities){
-            std::vector<Entity> new_entities;
-            /*
-            index_t index;
-            size_t entities_left = num_of_entities;
-            size_t entity_count = count();
-            new_entities.reserve(entities_left);
-            entity_versions_.resize(entity_count + entities_left);
-            component_masks_.resize(entity_count + entities_left, ComponentMask(0));
-            //first, allocate where there are holes
-            while (entities_left && !free_list_.empty()) {
-                index = free_list_.back();
-                free_list_.pop_back();
-                ++entity_count;
-                new_entities.push_back(get(index));
-                --entities_left;
-            }
-            while(entities_left){
-                index = entity_count++;
-                new_entities.push_back(get(index));
-                --entities_left;
-            }
-            return new_entities;
-            */
-            for (size_t i = 0; i < num_of_entities; ++i) {
-                new_entities.push_back(create());
-            }
-            return new_entities;
+            return create_with_mask(ComponentMask(0), num_of_entities);
         }
 
         /// If EntityAlias is constructable with Args...
@@ -1405,6 +1379,77 @@ namespace ecs{
             component_masks_.resize(index + 1, ComponentMask(0));
             return get_entity_from_index(index);
         }
+
+        std::vector<Entity> create_with_mask(ComponentMask mask, const size_t num_of_entities){
+            /*
+            index_t index;
+            size_t entities_left = num_of_entities;
+            size_t entity_count = count();
+            new_entities.reserve(entities_left);
+            entity_versions_.resize(entity_count + entities_left);
+            component_masks_.resize(entity_count + entities_left, ComponentMask(0));
+            //first, allocate where there are holes
+            while (entities_left && !free_list_.empty()) {
+                index = free_list_.back();
+                free_list_.pop_back();
+                ++entity_count;
+                new_entities.push_back(get(index));
+                --entities_left;
+            }
+            while(entities_left){
+                index = entity_count++;
+                new_entities.push_back(get(index));
+                --entities_left;
+            }
+            return new_entities;
+            */
+            std::vector<Entity> new_entities;
+            index_t index;
+            size_t entities_left = num_of_entities;
+            size_t entity_count = count();
+            new_entities.reserve(entities_left);
+            auto mask_as_ulong = mask.to_ulong();
+            IndexAccessor &index_accessor = component_mask_to_index_accessor_[mask_as_ulong];
+            //See if we can use old indexes for destroyed entities via free list
+            while(!index_accessor.free_list.empty() && entities_left--){
+                new_entities.push_back(get_entity_from_index(index_accessor.free_list.back()));
+                index_accessor.free_list.pop_back();
+            }
+            index_t block_index = 0;
+            index_t current    = ECS_CACHE_LINE_SIZE; // <- if empty, create new block instantly
+            size_t slots_required;
+            // Are there any blocks?
+            if(!index_accessor.last_index.empty()){
+                block_index = index_accessor.last_index[index_accessor.last_index.size() - 1];
+                current     = next_free_indexes_[block_index];
+                slots_required = block_count_ * ECS_CACHE_LINE_SIZE + current + entities_left;
+            } else{
+                slots_required = block_count_ * ECS_CACHE_LINE_SIZE + entities_left;
+            }
+            entity_versions_.resize(slots_required);
+            component_masks_.resize(slots_required, ComponentMask(0));
+
+            // Insert until no entity is left or no block remain
+            while(entities_left){
+                for (;current < ECS_CACHE_LINE_SIZE && entities_left; ++current) {
+                    new_entities.push_back(get_entity_from_index(current + ECS_CACHE_LINE_SIZE * block_index));
+                    entities_left--;
+                }
+                // Add more blocks if there are entities left
+                if(entities_left){
+                    block_index = block_count_;
+                    index_accessor.last_index.push_back(block_count_);
+                    next_free_indexes_.resize(block_count_ + 1);
+                    index_to_component_mask.resize(block_count_ + 1);
+                    next_free_indexes_[block_count_] = 0; // <- point at next free index
+                    index_to_component_mask[block_count_++] = mask_as_ulong;
+                    current = 0;
+                }
+            }
+            count_ += num_of_entities;
+            return new_entities;
+        }
+
 
         // Find a proper index for a new entity with components
         index_t find_new_entity_index(ComponentMask mask){
