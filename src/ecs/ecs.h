@@ -625,7 +625,7 @@ namespace ecs{
             typename std::enable_if<
                     !std::is_constructible<C,Args...>::value &&
                     std::is_base_of<details::BaseProperty, C>::value, C&>::type {
-                static_assert(sizeof...(Args) == 1 , ECS_ASSERT_MSG_ONLY_ONE_ARGS_PROPERTY_CONSTRUCTOR);
+                static_assert(sizeof...(Args) <= 1 , ECS_ASSERT_MSG_ONLY_ONE_ARGS_PROPERTY_CONSTRUCTOR);
                 pool_.ensure_min_size(index + 1);
                 new(get_ptr(index)) typename C::ValueType(std::forward<Args>(args)...);
                 return get(index);
@@ -1210,13 +1210,29 @@ namespace ecs{
                 init_components<C1, Cs...>(arg1, args...);
             }
 
+            template<typename C>
+            inline void init_components(){
+                add<C>();
+            }
+
+            template<typename C0, typename C1, typename ... Cs>
+            inline void init_components(){
+                init_components<C0>();
+                init_components<C1, Cs...>();
+            }
+
             template<typename ... Args>
-            EntityAlias(Args... args){
+            void init(Args... args){
                 init_components<Components...>(args...);
             }
 
+            template<typename ... Args>
+            EntityAlias(Args... args){
+                init(args...);
+            }
+
             EntityAlias(Components... args){
-                init_components<Components...>(args...);
+                init(args...);
             }
 
             static ComponentMask mask(){
@@ -1290,6 +1306,15 @@ namespace ecs{
             typedef EntityAlias<Components...> Type;
             Entity entity = create_with_mask(component_mask<Components...>());
             Type* entity_alias = new(&entity) Type(std::forward<Args>(args)...);
+            return *entity_alias;
+        }
+
+        template<typename ...Components>
+        EntityAlias<Components...> create_with(){
+            typedef EntityAlias<Components...> Type;
+            Entity entity = create_with_mask(component_mask<Components...>());
+            Type* entity_alias = new(&entity) Type();
+            entity_alias->init();
             return *entity_alias;
         }
 

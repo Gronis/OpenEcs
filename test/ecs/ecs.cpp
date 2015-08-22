@@ -660,10 +660,21 @@ SCENARIO("Testing ecs framework, unittests"){
                 REQUIRE(entity.get<Mana>() == 1);
             }
         }
+
+        WHEN("Creating 1 entity with Health and mana"){
+            Entity entity = entities.create_with<Health, Mana>();
+            THEN("They should have health and mana"){
+                REQUIRE(entity.has<Health>());
+                REQUIRE(entity.has<Mana>());
+                REQUIRE(entity.get<Health>() == 0);
+                REQUIRE(entity.get<Mana>() == 0);
+            }
+        }
+
         // Testing so that entities are created at appropriate locations
         WHEN("Creating some entities with different components attached"){
             Entity e1 = entities.create();
-            Entity e2 = entities.create_with<Health, Mana>(10,1);
+            Entity e2 = entities.create_with<Health, Mana>();
             Entity e3 = entities.create();
             Entity e4 = entities.create_with<Health>(10);
             Entity e5 = entities.create_with<Health, Mana>(1,10);
