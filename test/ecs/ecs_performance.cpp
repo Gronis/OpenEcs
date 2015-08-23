@@ -24,20 +24,24 @@ using namespace ecs;
 
 namespace {
     struct Wheels {
-        int i;
+        int value;
     };
 
     struct Door {
+        int value;
+    };
+
+    struct Hat{
         int i;
+    };
+
+    struct Clothes{
+        float i;
     };
 
     struct Car : EntityAlias<Wheels> {
     };
 };
-
-double time_elapsed(clock_t begin, clock_t end){
-    return double(end - begin) / CLOCKS_PER_SEC;
-}
 
 class Timer {
 public:
@@ -92,12 +96,32 @@ TEST_CASE("TestEntityDestruction") {
 }
 
 SCENARIO("TestEntityIteration") {
-    int count = 10000000;
+    const int count = 10000000;
     EntityManager entities;
     for (int i = 0; i < count; i++) {
-        auto e = entities.create();
-        e.add<Wheels>();
-        e.add<Door>();
+        entities.create_with<Wheels, Door>();
+    }
+
+    WHEN("Iterating using normal for-loop"){
+        std::cout << "Iterating over " << count << " using normal for loop" << std::endl;
+        Wheels wheels[count];
+        char* door = new char[count * sizeof(Door)];
+        std::vector<std::bitset<64>> mask;
+        mask.resize(count);
+        for (int j = 0; j < count; ++j) {
+            mask[j] = 0x2; // <- component mask
+        }
+
+        {
+            Timer t;
+            auto mask_ = std::bitset<64>(0x2);
+            for (int i = 0; i < count; ++i) {
+                if((mask[i] & mask_) == mask_){
+                    (void) (*reinterpret_cast<Door*>(door[i * sizeof(Door)])).value;
+                    (void)wheels[i].value;
+                }
+            }
+        }
     }
 
     WHEN("Iterating manually with iterator"){
@@ -166,5 +190,49 @@ SCENARIO("TestEntityIteration") {
         entities.fetch_every([](Car& car){
             (void)car;
         } );
+    }
+}
+
+SCENARIO("TestEntityIterationForDifferentEntities") {
+    int count = 10000000;
+    EntityManager entities;
+    for (int i = 0; i < count / 2; i++) {
+        entities.create_with<Wheels, Door>(10,10);
+        entities.create_with<Wheels, Hat>(10,10);
+    }
+
+    WHEN("Iterating using with<Wheels, Door>()") {
+        std::cout << "Iterating over " << count << " using with Doors and Wheels  ("
+                  << entities.with<Wheels, Door>().count() << ")" << std::endl;
+        {
+            Timer t;
+            entities.with([](Wheels& wheels, Door& door){
+                (void)wheels;
+                (void)door;
+            } );
+        }
+    }
+
+    WHEN("Iterating using with<Wheels, Hat>()") {
+        std::cout << "Iterating over " << count << " using with Wheels and Hat ("
+                  << entities.with<Wheels, Hat>().count() << ")" << std::endl;
+        {
+            Timer t;
+            entities.with([](Hat& hat, Wheels& wheels){
+                (void)hat;
+                (void)wheels;
+            } );
+        }
+    }
+
+    WHEN("Iterating using with<Clothes>()") {
+        std::cout << "Iterating over " << count << " using with Clothes ("
+                  << entities.with<Clothes>().count() << ")" << std::endl;
+        {
+            Timer t;
+            entities.with([](Clothes& clothes){
+                (void)clothes;
+            } );
+        }
     }
 }
