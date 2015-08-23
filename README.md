@@ -499,16 +499,29 @@ attached:
 
 | Operation                                             |      Time     |
 |-------------------------------------------------------|---------------|
-| create()                                              |     0.26s     |
-| create(10M)                                           |     0.14s     |
-| destroy()                                             |     0.07659s  |
+| create()                                              |     0.38s     |
+| create(10M)                                           |     0.17257s  |
+| destroy()                                             |     0.16733s  |
 | iterating using with for-loop (without unpacking)     |     0.00847s  |
-| iterating using with for-loop (unpack one component)  |     0.01525s  |
-| iterating using with lambda (unpack one component)    |     0.01525s  |
-| iterating using with for-loop (unpack two components) |     0.01815s  |
+| iterating using with for-loop (unpack one component)  |     0.01125s  |
+| iterating using with lambda (unpack one component)    |     0.01125s  |
+| iterating using with for-loop (unpack two components) |     0.01600s  |
 | iterating using with lambda (unpack two components)   |     0.01815s  |
-| iterating using fetch_every for-loop                  |     0.00847s  |
-| iterating using fetch_every lambda                    |     0.00847s  |
+| iterating using fetch_every for-loop                  |     0.00812s  |
+| iterating using fetch_every lambda                    |     0.00812s  |
+
+To improve performance, there are some guidelines:
+
+Create entities by using EntityAlias or with "create_with<Components...>" function, as this gives the EntityManager an idea were to put the entities. The EntityManager tries to clump similar entities together in memory, in order to reduce cache misses when loading memory into the cache CPU memory. When creating entities like this:
+
+```cpp
+// The EntityManager has no idea what components are comming
+// and and will probably put this entity near other entities
+// that don't have similar components.
+Entity e = entities.create();
+e.add<SomeComponent>();
+e.add<SomeOtherComponent>();
+```
 
 To improve performance iterate by using auto when iterating with a for loop
 
@@ -521,10 +534,7 @@ for(auto entity : entities.with<Health, Name>()){
 }
 
 ```
-Why should I do this? Because when you use the function "get\<Health\>" on the Entity object,
-we need to perform some runtime checks. If you are using EntityAlias\<Health,Name\>, the compiler 
-assumes that the entity has Health and Name components, and bypasses this check when accessing 
-the component. We already do this runtime check when we iterate through the list. Why do it again?
+When you use the function "get\<Health\>" on the Entity object,we need to perform some runtime checks. If you are using EntityAlias\<Health,Name\>, the compiler assumes that the entity has Health and Name components, and bypasses this check when accessing the component. We already do this runtime check when we iterate through the list. Why do it again?
 
 ```cpp  
 for(auto entity : entities.with<Health, Name>()){
