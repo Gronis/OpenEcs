@@ -16,6 +16,8 @@
 /// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <iostream>
+#include <chrono>
+
 #include "common/thirdparty/catch.hpp"
 
 #include "ecs/ecs.h"
@@ -109,12 +111,12 @@ SCENARIO("TestEntityIteration") {
         std::vector<std::bitset<64>> mask;
         mask.resize(count);
         for (int j = 0; j < count; ++j) {
-            mask[j] = 0x2; // <- component mask
+            mask[j] = 0x3; // <- component mask
         }
 
         {
             Timer t;
-            auto mask_ = std::bitset<64>(0x2);
+            auto mask_ = std::bitset<64>(0x3);
             for (int i = 0; i < count; ++i) {
                 if((mask[i] & mask_) == mask_){
                     (void) (*reinterpret_cast<Door*>(door[i * sizeof(Door)])).value;

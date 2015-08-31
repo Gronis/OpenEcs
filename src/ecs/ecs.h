@@ -273,7 +273,7 @@ namespace ecs{
         };
 
         ///---------------------------------------------------------------------
-        /// Every Property must dirive from the BasePropery somehow used for
+        /// Every Property must derive from the BaseProperty somehow used for
         /// compile-time calculations
         ///---------------------------------------------------------------------
         struct BaseProperty {};
@@ -929,7 +929,7 @@ namespace ecs{
             }
 
         private:
-            void find_next(){
+            inline void find_next(){
                 while (cursor_ < size_ && (manager_->component_masks_[cursor_] & mask_) != mask_){
                     ++cursor_;
                 }
@@ -1236,7 +1236,6 @@ namespace ecs{
 
 
             friend class EntityManager;
-            friend class EntityAlias;
             friend class Entity;
         }; //EntityAlias
 
@@ -1538,7 +1537,7 @@ namespace ecs{
                                                                std::forward<Args>(args) ...);
             component_managers_[component_index<C>()] = ptr;
             return *ptr;
-        };
+        }
 
         template<typename C>
         inline ComponentManager<C>& get_component_manager_fast(){

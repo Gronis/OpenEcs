@@ -341,10 +341,10 @@ SCENARIO("Testing ecs framework, unittests"){
                     }
                 }
                 THEN("Iterating over entities with health as type Entity should compile"){
-                    for(Entity e : entities.with<Health>()){}
+                    for(Entity e : entities.with<Health>()){ (void)e; }
                 }
                 THEN("Iterating over entities with health as type EntityAlias<Health> should compile"){
-                    for(EntityAlias<Health> e : entities.with<Health>()){}
+                    for(EntityAlias<Health> e : entities.with<Health>()){ (void) e; }
                 }
                 THEN("Iterating over entities with health as type EntityAlias<Health> should compile"){
                     for(auto e : entities.with<Health>()){
@@ -537,6 +537,7 @@ SCENARIO("Testing ecs framework, unittests"){
                 THEN("Number of cars should be 1, when counting with for each loop"){
                     int count = 0;
                     for (Car car : cars) {
+                        (void)car;
                         ++count;
                     }
                     REQUIRE(count == 1);

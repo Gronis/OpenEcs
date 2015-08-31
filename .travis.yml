@@ -1,0 +1,23 @@
+language: cpp
+
+compiler:
+  - clang
+  - gcc
+
+sudo: false
+
+install:
+- if [ "$CXX" = "g++" ]; then export CXX="g++-4.8" CC="gcc-4.8"; fi
+
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    packages:
+    - cmake
+    - gcc-4.8
+    - g++-4.8
+    - clang
+
+
+script: ./scripts/travis.sh
