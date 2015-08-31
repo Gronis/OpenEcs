@@ -148,7 +148,7 @@ SCENARIO("TestEntityIteration") {
         std::cout << "Iterating over " << count << " using with for-loop unpacking one component" << std::endl;
         Timer t;
         for (auto e : entities.with<Wheels>()) {
-            auto wheels = e.get<Wheels>();
+            e.get<Wheels>();
         }
     }
 
@@ -164,8 +164,8 @@ SCENARIO("TestEntityIteration") {
         std::cout << "Iterating over " << count << " using with for-loop unpacking two components" << std::endl;
         Timer t;
         for (auto e : entities.with<Wheels, Door>()) {
-            auto wheels = e.get<Wheels>();
-            auto door = e.get<Door>();
+            e.get<Wheels>();
+            e.get<Door>();
         }
     }
 
