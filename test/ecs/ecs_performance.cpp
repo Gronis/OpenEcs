@@ -43,7 +43,7 @@ namespace {
 
     struct Car : EntityAlias<Wheels> {
     };
-};
+}
 
 class Timer {
 public:
