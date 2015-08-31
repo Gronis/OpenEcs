@@ -16,7 +16,7 @@ I authored OpenEcs after using other ECS libraries. The main reason for this was
 wasn't supposed to become its own library. As I progressed, I thought it might be worth releasing it to the public as it 
 slightly became a library with a different approach than the others.
 
-OpenECS focuses on clean and understandable code that compiles to something very performant, with good defaults, but still providing the ability to configure alternative behaviours when necessary.
+OpenECS focuses on clean and understandable code that compiles to something with good performance, with good defaults, but still providing the ability to configure alternative behaviours when necessary.
 
 ##Installation
 Just [Download](https://github.com/Gronis/OpenEcs/raw/master/src/ecs/ecs.h) the header and include it into your project.
@@ -97,7 +97,7 @@ health.value = 3;
 //NOTE, you should use reference, not value.
 //Otherwise, the components will be copied and
 //any change made to it will not be registered
-//on the acctual component
+//on the actual component
 
 //NOTE: Do not use (unless you know what you are doing)
 Health health = entity.get<Health>();
@@ -105,7 +105,7 @@ health.value = 3;// <- does not change health of entity,
 //                     because variable is copied
 
 ```
-Accessing a component which does not exist on a specified entity will trigger a runtime assertion. To check if an entitiy has a specified component, use the "has" function.
+Accessing a component which does not exist on a specified entity will trigger a runtime assertion. To check if an entity has a specified component, use the "has" function.
 
 ```cpp
 Entity entity = entities.create();
@@ -151,7 +151,7 @@ entity.add<Health>(0); // <- triggers runtime assertion, Entity invalid
 bool is_valid = entity.is_valid();
 ```
 
-To track if an entity is valid. OpenEcs accociates each entity with a version when accessed from the EntityManager. Whenever an entity is destoyed, the version for that Entity changes, and all entities with the old versions are invalid, as they no longer exists.
+To track if an entity is valid. OpenEcs associates each entity with a version when accessed from the EntityManager. Whenever an entity is destroyed, the version for that Entity changes, and all entities with the old versions are invalid, as they no longer exists.
 
 ### Iterating through the EntityManager
 To access entities with certain components. There is a "with" function that looks like this
@@ -180,7 +180,7 @@ entities.with([](Health& health, Mana& mana, Entity entity){
 
 ```
 
-NOTE, use reference, not values as parameters. (with the exception of Entity). Otherwise, the components will be copied and any change made to it will not be registered on the acctual component.
+NOTE, use reference, not values as parameters. (with the exception of Entity). Otherwise, the components will be copied and any change made to it will not be registered on the actual component.
 
 
 ```cpp
@@ -388,7 +388,7 @@ entity.add<Height>(180);
 entity.add<Weight>(75);
 
 //But we want to use the EntityAlias class, because we know what an Actor is. 
-//However, we don't want to write the construcor, because enouth is specified 
+//However, we don't want to write the constructor, because enough is specified 
 //for the library to "figure out" how to create an Actor after specifying what 
 //components it has. Therefore, we leave out the constructor.
 class Actor : public EntityAlias<Name, Height, Weight> {};
@@ -404,7 +404,7 @@ entities.create<Actor>("Darth Vader", 180, 75);
 //create<Actor> assumes that each parameter can add
 //required components with that single argument.
 class Actor : public EntityAlias<Name, Height, Weight> {
-    //No construcor means the same thing as this constructor
+    //No constructor means the same thing as this constructor
     Actor(std::string name, int height, int weight){
         add<Name>(name);
         add<Height>(height);
@@ -421,30 +421,30 @@ struct Velocity{ int x,y; };
 struct Position{ int x,y; };
 
 //EntityAlias
-struct Moveable : EntityAlias<Position, Velocity>{};
+struct Movable : EntityAlias<Position, Velocity>{};
 
-entities.create<Moveable>(/*What to write here?*/);
+entities.create<Movable>(/*What to write here?*/);
 
-//In order to create a moveable without providing a constructor
+//In order to create a movable without providing a constructor
 //We must write like this.
-entities.create<Moveable>(Position{0,0}, Velocity{0,0});
+entities.create<Movable>(Position{0,0}, Velocity{0,0});
 //This calls the standard copy constructor for Position and
 //Velocity component. 
 
 //If we want to be able to write something like this:
-entities.create<Moveable>(0,0,0,0);
+entities.create<Movable>(0,0,0,0);
 //We need to provide the following constructor, since
-//there is not enouth information specified for the
-//library to understand how to add create a Moveable.
-struct Moveable : EntityAlias<Position, Velocity>{
-    Moveable(int posX, int posY, int velX, int velY){
+//there is not enough information specified for the
+//library to understand how to add create a Movable.
+struct Movable : EntityAlias<Position, Velocity>{
+    Movable(int posX, int posY, int velX, int velY){
         add<Position>(posX, posY);
         add<Velocity>(velX, velY);
     }
 };
 ```
 
-Hopefully, this should help with quick creation of components and EntityAliases without typing "boilerplate code" for the lazy people (like me), while still allowing the flexibility of defining your own constructors when neccessary.
+Hopefully, this should help with quick creation of components and EntityAliases without typing "boilerplate code" for the lazy people (like me), while still allowing the flexibility of defining your own constructors when necessary.
 
 
 ###Override operators
@@ -470,7 +470,7 @@ struct Health : Property<int>{
   }; 
 };
 
-// Or skip the constructor entierly, like with usual components.
+// Or skip the constructor entirely, like with usual components.
 // However the assignment operator will not work without
 // a given constructor.
 struct Health : Property<int>{};
@@ -508,7 +508,7 @@ attached:
 | iterating using with for-loop (unpack one component)  |     0.01125s  |
 | iterating using with lambda (unpack one component)    |     0.01125s  |
 | iterating using with for-loop (unpack two components) |     0.01600s  |
-| iterating using with lambda (unpack two components)   |     0.01815s  |
+| iterating using with lambda (unpack two components)   |     0.01600s  |
 | iterating using fetch_every for-loop                  |     0.00812s  |
 | iterating using fetch_every lambda                    |     0.00812s  |
 
