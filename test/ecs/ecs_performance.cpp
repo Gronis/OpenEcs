@@ -43,6 +43,18 @@ namespace {
 
     struct Car : EntityAlias<Wheels> {
     };
+
+    // Used to make sure the comparator does not optimize away my for-loop
+    struct BaseFoo{
+        virtual void bar() = 0;
+        bool always_false = false;
+    };
+
+    struct Foo : BaseFoo{
+        virtual void bar() override{
+
+        }
+    };
 }
 
 class Timer {
@@ -106,21 +118,14 @@ SCENARIO("TestEntityIteration") {
 
     WHEN("Iterating using normal for-loop"){
         std::cout << "Iterating over " << count << " using normal for loop" << std::endl;
-        Wheels wheels[count];
-        char* door = new char[count * sizeof(Door)];
-        std::vector<std::bitset<64>> mask;
-        mask.resize(count);
-        for (int j = 0; j < count; ++j) {
-            mask[j] = 0x3; // <- component mask
-        }
-
+        BaseFoo* foo = new Foo();
         {
             Timer t;
-            auto mask_ = std::bitset<64>(0x3);
             for (int i = 0; i < count; ++i) {
-                if((mask[i] & mask_) == mask_){
-                    (void) (*reinterpret_cast<Door*>(door[i * sizeof(Door)])).value;
-                    (void)wheels[i].value;
+                //we don't want to call dummy function.
+                if(foo->always_false){
+                    //useless function call to make sure the loop is not optimized away.
+                    foo->bar();
                 }
             }
         }

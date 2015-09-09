@@ -504,6 +504,7 @@ attached:
 | create()                                              |     0.38s     |
 | create(10M)                                           |     0.17257s  |
 | destroy()                                             |     0.16733s  |
+| normal for-loop with if-case                          |     0.00652s  |
 | iterating using with for-loop (without unpacking)     |     0.00847s  |
 | iterating using with for-loop (unpack one component)  |     0.01125s  |
 | iterating using with lambda (unpack one component)    |     0.01125s  |
