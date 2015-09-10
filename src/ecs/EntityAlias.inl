@@ -183,13 +183,13 @@ details::ComponentMask EntityAlias<Cs...>::mask(){
 }
 
 template<typename ... Cs>
-inline bool operator==(const EntityAlias<Cs...> &lhs, const Entity &rhs) {
-  return lhs.entity_ == rhs;
+inline bool EntityAlias<Cs...>::operator==(const Entity &rhs) const {
+  return entity_ == rhs;
 }
 
 template<typename ... Cs>
-inline bool operator!=(const EntityAlias<Cs...> &lhs, const Entity &rhs) {
-  return lhs.entity_ != rhs;
+inline bool EntityAlias<Cs...>::operator!=(const Entity &rhs) const {
+  return entity_ != rhs;
 }
 
 

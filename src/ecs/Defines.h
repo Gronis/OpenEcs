@@ -1,5 +1,5 @@
-#ifndef ECS_TYPES_H
-#define ECS_TYPES_H
+#ifndef ECS_DEFINES_H
+#define ECS_DEFINES_H
 
 /// The cache line size for the processor. Usually 64 bytes
 #ifndef ECS_CACHE_LINE_SIZE
@@ -48,23 +48,17 @@
             "constructor to initilize property component correctly"                         \
 
 namespace ecs{
-
 /// Type used for entity index
-typedef uint32_t index_t;
-
+using index_t = uint32_t;
 /// Type used for entity version
-typedef uint8_t version_t;
+using version_t = uint8_t;
 
 namespace details{
-///---------------------------------------------------------------------
+
 /// ComponentMask is a mask defining what components and entity has.
-///---------------------------------------------------------------------
-///
-///---------------------------------------------------------------------
-typedef std::bitset<ECS_MAX_NUM_OF_COMPONENTS> ComponentMask;
+using ComponentMask = std::bitset<ECS_MAX_NUM_OF_COMPONENTS>;
 
 } // namespace details
-
 } // namespace ecs
 
-#endif //ECS_TYPES_H
+#endif //ECS_DEFINES_H

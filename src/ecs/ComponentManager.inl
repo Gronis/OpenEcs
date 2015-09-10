@@ -1,4 +1,5 @@
 #include "EntityManager.h"
+#include "Defines.h"
 
 namespace ecs{
 

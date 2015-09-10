@@ -13,6 +13,7 @@ class BaseEntityAlias {
   BaseEntityAlias(const BaseEntityAlias &other);
 
   EntityManager &entities() { return *manager_; }
+  Entity &entity() { return entity_; }
  private:
   union {
     EntityManager *manager_;
@@ -48,6 +49,9 @@ class EntityAlias : public details::BaseEntityAlias {
 
   operator Entity &();
   operator Entity const &() const;
+
+  bool operator==(const Entity &rhs) const;
+  bool operator!=(const Entity &rhs) const;
 
   Id &id();
   Id const &id() const;
@@ -150,9 +154,6 @@ class EntityAlias : public details::BaseEntityAlias {
   friend class EntityManager;
   friend class Entity;
 }; //EntityAlias
-
-template<typename ... Cs> bool operator==(const EntityAlias<Cs...> &lhs, const Entity &rhs);
-template<typename ... Cs> bool operator!=(const EntityAlias<Cs...> &lhs, const Entity &rhs);
 
 } // namespace ecs
 

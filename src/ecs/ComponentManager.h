@@ -8,10 +8,11 @@ class EntityManager;
 
 namespace details{
 
+// Forward declarations
 class BaseProperty;
 
 ///---------------------------------------------------------------------
-/// Helper class
+/// Helper class, all ComponentManager are a BaseManager
 ///---------------------------------------------------------------------
 class BaseManager {
  public:
@@ -21,8 +22,8 @@ class BaseManager {
 };
 
 ///---------------------------------------------------------------------
-/// Helper class,  This is the main class for holding many Component of
-/// a specified type.
+/// Helper class, This is the main class for holding many Component of
+/// a specified type. It uses a memory pool to store the components
 ///---------------------------------------------------------------------
 template<typename C>
 class ComponentManager: public BaseManager, details::forbid_copies {
@@ -32,16 +33,20 @@ class ComponentManager: public BaseManager, details::forbid_copies {
   /// Allocate and create at specific index, using constructor
   template<typename ...Args>
   C& create(index_t index, Args &&... args);
+
+  /// Remove component at specific index and call destructor
   void remove(index_t index);
 
+  /// Access a component given a specific index
   C& operator[](index_t index);
-
   C& get(index_t index);
   C const& get(index_t index) const;
 
+  /// Access a ptr to a component given a specific index
   C* get_ptr(index_t index);
   C const* get_ptr(index_t index) const;
 
+  /// Get the bitmask for the component this ComponentManger handles
   ComponentMask mask();
 
  private:
