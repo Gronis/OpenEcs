@@ -185,26 +185,21 @@ class forbid_copies {
 class BasePool: forbid_copies {
  public:
   explicit BasePool(size_t element_size, size_t chunk_size = ECS_DEFAULT_CHUNK_SIZE);
-
   virtual ~BasePool();
 
-  inline index_t size() const { return size_; }
-
-  inline index_t capacity() const { return capacity_; }
-
-  inline size_t chunks() const { return chunks_.size(); }
-
-  inline void ensure_min_size(std::size_t size);
-
-  inline void ensure_min_capacity(size_t min_capacity);
+  index_t size()     const { return size_; }
+  index_t capacity() const { return capacity_; }
+  size_t  chunks()   const { return chunks_.size(); }
+  void ensure_min_size(std::size_t size);
+  void ensure_min_capacity(size_t min_capacity);
 
   virtual void destroy(index_t index) = 0;
 
  protected:
-  index_t size_;
-  index_t capacity_;
-  size_t element_size_;
-  size_t chunk_size_;
+  index_t             size_;
+  index_t             capacity_;
+  size_t              element_size_;
+  size_t              chunk_size_;
   std::vector<char *> chunks_;
 };
 
@@ -274,16 +269,16 @@ class ComponentManager: public BaseManager, details::forbid_copies {
 
   /// Allocate and create at specific index, using constructor
   template<typename ...Args>
-  C&create(index_t index, Args &&... args);
+  C& create(index_t index, Args &&... args);
   void remove(index_t index);
 
-  C &operator[](index_t index);
+  C& operator[](index_t index);
 
-  C &get(index_t index);
-  C const &get(index_t index) const;
+  C& get(index_t index);
+  C const& get(index_t index) const;
 
-  C *get_ptr(index_t index);
-  C const *get_ptr(index_t index) const;
+  C* get_ptr(index_t index);
+  C const* get_ptr(index_t index) const;
 
   ComponentMask mask();
 
@@ -413,8 +408,8 @@ class Entity {
   Id const &id() const { return id_; }
 
   /// Returns the requested component, or error if it doesn't exist
-  template<typename C> inline C &get();
-  template<typename C> inline C const &get() const;
+  template<typename C> C &get();
+  template<typename C> C const &get() const;
 
   /// Set the requested component, if old component exist,
   /// a new one is created. Otherwise, the assignment operator
@@ -527,14 +522,18 @@ class EntityAlias : public details::BaseEntityAlias {
   Id const &id() const;
 
   /// Returns the requested component, or error if it doesn't exist
-  template<typename C> inline C & get();
-  template<typename C> inline C const & get() const;
+  template<typename C> auto get()       -> typename std::enable_if< is_component<C>::value, C &>::type;
+  template<typename C> auto get()       -> typename std::enable_if<!is_component<C>::value, C &>::type;
+  template<typename C> auto get() const -> typename std::enable_if< is_component<C>::value, C const &>::type;
+  template<typename C> auto get() const -> typename std::enable_if<!is_component<C>::value, C const &>::type;
 
   /// Set the requested component, if old component exist,
   /// a new one is created. Otherwise, the assignment operator
   /// is used.
-  template<typename C, typename ... Args>
-  inline C& set(Args &&... args);
+  template<typename C, typename ... Args> auto set(Args &&... args) ->
+      typename std::enable_if< is_component<C>::value, C &>::type;
+  template<typename C, typename ... Args> auto set(Args &&... args) ->
+      typename std::enable_if<!is_component<C>::value, C &>::type;
 
   /// Add the requested component, error if component of the same type exist already
   template<typename C, typename ... Args>
@@ -553,8 +552,8 @@ class EntityAlias : public details::BaseEntityAlias {
   inline EntityAlias<Components_...> const &assume() const;
 
   /// Removes a component. Error of it doesn't exist. Cannot remove dependent components
-  template<typename C>
-  void remove();
+  template<typename C> auto remove() -> typename std::enable_if< is_component<C>::value, void>::type;
+  template<typename C> auto remove() -> typename std::enable_if<!is_component<C>::value, void>::type;
 
   /// Removes all components and call destructors
   void remove_everything();
@@ -725,7 +724,9 @@ class EntityManager: details::forbid_copies {
 
   /// Create, using EntityAlias
   template<typename T, typename ...Args>
-  T create(Args && ... args);
+  auto create(Args && ... args) -> typename std::enable_if<!std::is_constructible<T, Args...>::value, T>::type;
+  template<typename T, typename ...Args>
+  auto create(Args && ... args) -> typename std::enable_if< std::is_constructible<T, Args...>::value, T>::type;
 
   /// Create an entity with components assigned
   template<typename ...Components, typename ...Args>
@@ -919,6 +920,9 @@ class EntityManager: details::forbid_copies {
 
   template<typename T>
   friend class details::ComponentManager;
+
+  template<typename ...Cs>
+  friend class EntityAlias;
 
   template<typename T>
   friend class Iterator;

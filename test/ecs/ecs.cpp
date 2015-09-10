@@ -887,33 +887,35 @@ ComponentManager<C>::ComponentManager(EntityManager &manager, size_t chunk_size)
     pool_(chunk_size)
 { }
 
-template<typename C> template<typename ...Args>
-auto ComponentManager<C>::create(index_t index, Args &&... args) ->
-typename std::enable_if<std::is_constructible<C, Args...>::value, C &>::type {
-  pool_.ensure_min_size(index + 1);
-  new(get_ptr(index)) C(std::forward<Args>(args)...);
-  return get(index);
+// Creating a component that has a defined ctor
+template<typename C, typename ...Args>
+auto create_component(void* ptr, Args && ... args) ->
+typename std::enable_if<std::is_constructible<C, Args...>::value, void>::type {
+  new(ptr) C(std::forward<Args>(args)...);
 }
 
-template<typename C> template<typename ...Args>
-auto ComponentManager<C>::create(index_t index, Args &&... args) ->
-typename std::enable_if<
-    !std::is_constructible<C, Args...>::value &&
-        !std::is_base_of<details::BaseProperty, C>::value, C &>::type {
-  pool_.ensure_min_size(index + 1);
-  new(get_ptr(index)) C{std::forward<Args>(args)...};
-  return get(index);
+// Creating a component that doesn't have ctor, and is not a property -> create using uniform initialization
+template<typename C, typename ...Args>
+auto create_component(void* ptr, Args && ... args) ->
+typename std::enable_if<!std::is_constructible<C, Args...>::value &&
+        !std::is_base_of<details::BaseProperty, C>::value, void>::type {
+  new(ptr) C{std::forward<Args>(args)...};
 }
 
-
-template<typename C> template<typename ...Args>
-auto ComponentManager<C>::create(index_t index, Args &&... args) ->
+// Creating a component that doesn't have ctor, and is a property -> create using underlying Property ctor
+template<typename C, typename ...Args>
+auto create_component(void* ptr, Args && ... args) ->
 typename std::enable_if<
     !std::is_constructible<C, Args...>::value &&
-        std::is_base_of<details::BaseProperty, C>::value, C &>::type {
+        std::is_base_of<details::BaseProperty, C>::value, void>::type {
   static_assert(sizeof...(Args) <= 1, ECS_ASSERT_MSG_ONLY_ONE_ARGS_PROPERTY_CONSTRUCTOR);
+  new(ptr) typename C::ValueType(std::forward<Args>(args)...);
+}
+
+template<typename C> template<typename ...Args>
+C& ComponentManager<C>::create(index_t index, Args &&... args) {
   pool_.ensure_min_size(index + 1);
-  new(get_ptr(index)) typename C::ValueType(std::forward<Args>(args)...);
+  create_component<C>(get_ptr(index), std::forward<Args>(args)...);
   return get(index);
 }
 
@@ -1609,7 +1611,8 @@ auto EntityManager::create(Args && ... args) ->
 typename std::enable_if<std::is_constructible<T, Args...>::value, T>::type {
   ECS_ASSERT_IS_ENTITY(T);
   ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
-  details::ComponentMask mask = T::mask();
+  typedef typename T::Type Type;
+  auto mask = T::mask();
   Entity entity = create_with_mask(mask);
   T *entity_alias = new(&entity) T(std::forward<Args>(args)...);
   ECS_ASSERT(entity.has(mask),
@@ -1625,10 +1628,11 @@ typename std::enable_if<!std::is_constructible<T, Args...>::value, T>::type {
   ECS_ASSERT_IS_ENTITY(T);
   ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
   typedef typename T::Type Type;
-  Entity entity = create_with_mask(T::mask());
+  auto mask = T::mask();
+  Entity entity = create_with_mask(mask);
   Type *entity_alias = new(&entity) Type();
   entity_alias->init(std::forward<Args>(args)...);
-  ECS_ASSERT(entity.has(T::mask()),
+  ECS_ASSERT(entity.has(mask),
              "Every required component must be added when creating an Entity Alias");
   return *reinterpret_cast<T *>(entity_alias);
 }
