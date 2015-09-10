@@ -13,7 +13,8 @@ namespace details {
 ///---------------------------------------------------------------------
 ///
 /// The BasePool is used to store void*. Use Pool<T> for a generic
-/// Pool allocation class.
+/// Pool allocation class. The standard is to store one cache-line
+/// (64 bytes) per chunk.
 ///
 ///---------------------------------------------------------------------
 class BasePool: forbid_copies {
@@ -44,7 +45,8 @@ class BasePool: forbid_copies {
 ///
 /// The Pool is used to store * of any class. Destroying an object calls
 /// destructor. The pool doesn't know where there is data allocated.
-/// This must be done from outside.
+/// This must be done from outside. The default chunk-size is 64 bytes *
+/// the size of each object.
 ///
 ///---------------------------------------------------------------------
 template<typename T>

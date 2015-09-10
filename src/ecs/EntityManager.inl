@@ -132,7 +132,7 @@ Entity EntityManager::create_with_mask(details::ComponentMask mask)  {
 }
 
 std::vector<Entity> EntityManager::create_with_mask(details::ComponentMask mask, const size_t num_of_entities) {
-  std::vector<Entity> new_entities; 
+  std::vector<Entity> new_entities;
   size_t entities_left = num_of_entities;
   new_entities.reserve(entities_left);
   auto mask_as_ulong = mask.to_ulong();

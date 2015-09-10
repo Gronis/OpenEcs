@@ -4,10 +4,10 @@
 namespace ecs{
 
 ///---------------------------------------------------------------------
-/// Describe Id here
-///---------------------------------------------------------------------
-///
-///
+/// Id is used for Entity to identify entities. It consists of an index
+/// and a version. The index describes where the entity is located in
+/// memory. The version is used to separate entities if they get the
+/// same index.
 ///---------------------------------------------------------------------
 class Id {
  public:

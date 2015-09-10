@@ -1,5 +1,6 @@
-namespace ecs{
+#include "EntityManager.h"
 
+namespace ecs{
 
 template<typename T>
 View<T>::View(EntityManager *manager, details::ComponentMask mask)  :

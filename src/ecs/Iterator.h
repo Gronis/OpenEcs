@@ -3,9 +3,9 @@
 
 namespace ecs{
 
-
 ///---------------------------------------------------------------------
-/// Iterator is an iterator for iterating through the entity manager
+/// Iterator is an iterator for iterating through the entity manager.
+/// The iterator should fulfill the c++ standards for an input iterator,
 ///---------------------------------------------------------------------
 template<typename T>
 class Iterator: public std::iterator<std::input_iterator_tag, typename std::remove_reference<T>::type> {
@@ -16,12 +16,16 @@ class Iterator: public std::iterator<std::input_iterator_tag, typename std::remo
   Iterator(const Iterator &it);
   Iterator &operator=(const Iterator &rhs) = default;
 
+  // Get the current index (cursor)
   index_t index() const;
   Iterator &operator++();
+
+  // The the current entity
   T       entity();
   T const entity() const;
 
  private:
+  // find next entity withing the EntityManager which has the correct components
   void find_next();
 
   EntityManager         *manager_;

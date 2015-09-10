@@ -92,4 +92,4 @@ inline bool operator!=(const Entity &lhs, const Entity &rhs);
 
 #include "Entity.inl"
 
-#endif //OPENECS_ENTITY_H
+#endif //ECS_ENTITY_H

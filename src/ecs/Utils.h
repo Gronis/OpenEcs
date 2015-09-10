@@ -1,6 +1,11 @@
 #ifndef ECS_UTILS_H
 #define ECS_UTILS_H
 
+///--------------------------------------------------------------------
+/// This file contains useful classes for meta-programming or
+/// nice helper functions
+///--------------------------------------------------------------------
+
 namespace ecs{
 
 /// Forward declarations
