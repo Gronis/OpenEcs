@@ -515,10 +515,10 @@ attached:
 
 To improve performance, there are some guidelines:
 
-Create entities by using EntityAlias or with "create_with<Components...>" function, as this gives the EntityManager an idea were to put the entities. The EntityManager tries to clump similar entities together in memory, in order to reduce cache misses when loading memory into the cache CPU memory. When creating entities like this:
+Create entities by using EntityAlias or with "create_with\<Components...\>" function, as this gives the EntityManager an idea were to put the entities. The EntityManager tries to clump similar entities together in memory, in order to reduce cache misses when loading memory into the cache CPU memory. When creating entities like this:
 
 ```cpp
-// The EntityManager has no idea what components are comming
+// The EntityManager has no idea what components are coming
 // and and will probably put this entity near other entities
 // that don't have similar components.
 Entity e = entities.create();
