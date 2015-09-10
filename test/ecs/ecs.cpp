@@ -828,6 +828,123 @@ inline const T & Pool<T>::operator[](size_t index) const {
   return get(index);
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////
+
+//C1 should not be Entity
+template<typename C>
+static inline auto component_mask() -> typename
+std::enable_if<!std::is_same<C, Entity>::value, ComponentMask>::type {
+  ComponentMask mask = ComponentMask((1UL << component_index<C>()));
+  return mask;
+}
+
+//When C1 is Entity, ignore
+template<typename C>
+static inline auto component_mask() -> typename
+std::enable_if<std::is_same<C, Entity>::value, ComponentMask>::type {
+  return ComponentMask(0);
+}
+
+//recursive function for component_mask creation
+template<typename C1, typename C2, typename ...Cs>
+static inline auto component_mask() -> typename
+std::enable_if<!std::is_same<C1, Entity>::value, ComponentMask>::type {
+  ComponentMask mask = component_mask<C1>() | component_mask<C2, Cs...>();
+  return mask;
+}
+
+template<typename C>
+size_t component_index() {
+  static size_t index = inc_component_counter();
+  return index;
+}
+
+size_t inc_component_counter()  {
+  size_t index = component_counter()++;
+  ECS_ASSERT(index < ECS_MAX_NUM_OF_COMPONENTS, "maximum number of components exceeded.");
+  return index;
+}
+
+size_t &component_counter() {
+  static size_t counter = 0;
+  return counter;
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+template<typename C>
+ComponentManager<C>::ComponentManager(EntityManager &manager, size_t chunk_size)  :
+    manager_(manager),
+    pool_(chunk_size)
+{ }
+
+template<typename C> template<typename ...Args>
+auto ComponentManager<C>::create(index_t index, Args &&... args) ->
+typename std::enable_if<std::is_constructible<C, Args...>::value, C &>::type {
+  pool_.ensure_min_size(index + 1);
+  new(get_ptr(index)) C(std::forward<Args>(args)...);
+  return get(index);
+}
+
+template<typename C> template<typename ...Args>
+auto ComponentManager<C>::create(index_t index, Args &&... args) ->
+typename std::enable_if<
+    !std::is_constructible<C, Args...>::value &&
+        !std::is_base_of<details::BaseProperty, C>::value, C &>::type {
+  pool_.ensure_min_size(index + 1);
+  new(get_ptr(index)) C{std::forward<Args>(args)...};
+  return get(index);
+}
+
+
+template<typename C> template<typename ...Args>
+auto ComponentManager<C>::create(index_t index, Args &&... args) ->
+typename std::enable_if<
+    !std::is_constructible<C, Args...>::value &&
+        std::is_base_of<details::BaseProperty, C>::value, C &>::type {
+  static_assert(sizeof...(Args) <= 1, ECS_ASSERT_MSG_ONLY_ONE_ARGS_PROPERTY_CONSTRUCTOR);
+  pool_.ensure_min_size(index + 1);
+  new(get_ptr(index)) typename C::ValueType(std::forward<Args>(args)...);
+  return get(index);
+}
+
+template<typename C>
+void ComponentManager<C>::remove(index_t index) {
+  pool_.destroy(index);
+  manager_.mask(index).reset(component_index<C>());
+}
+
+template<typename C>
+C &ComponentManager<C>::operator[](index_t index){
+  return get(index);
+}
+
+template<typename C>
+C &ComponentManager<C>::get(index_t index) {
+  return *get_ptr(index);
+}
+
+template<typename C>
+C const &ComponentManager<C>::get(index_t index) const {
+  return *get_ptr(index);
+}
+
+template<typename C>
+C *ComponentManager<C>::get_ptr(index_t index)  {
+  return pool_.get_ptr(index);
+}
+
+template<typename C>
+C const *ComponentManager<C>::get_ptr(index_t index) const {
+  return pool_.get_ptr(index);
+}
+
+template<typename C>
+ComponentMask ComponentManager<C>::mask() {
+  return component_mask<C>();
+}
+
 } // namespace details
 
 
@@ -982,6 +1099,236 @@ inline T operator>>(Property<T> &lhs, const E &rhs) {
 template<typename T, typename E>
 inline T operator<<(Property<T> &lhs, const E &rhs) {
   return lhs.value << rhs;
+}
+
+
+
+/////////////////////////////////////////////////////////////////////////////////
+
+Id::Id() { }
+
+Id::Id(index_t index, version_t version) :
+    index_(index),
+    version_(version)
+{ }
+
+bool operator==(const Id& lhs, const Id &rhs) {
+  return lhs.index_ == rhs.index_ && lhs.version_ == rhs.version_;
+}
+
+bool operator!=(const Id& lhs, const Id &rhs) {
+  return lhs.index_ != rhs.index_ || lhs.version_ != rhs.version_;
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+
+Entity::Entity(const Entity &other) : Entity(other.manager_, other.id_) { }
+
+Entity::Entity(EntityManager *manager, Id id) :
+    manager_(manager),
+    id_(id)
+{ }
+
+Entity &Entity::operator=(const Entity &rhs) {
+  manager_ = rhs.manager_;
+  id_ = rhs.id_;
+  return *this;
+}
+
+template<typename C>
+C &Entity::get() {
+  return manager_->get_component<C>(*this);
+}
+
+template<typename C>
+C const &Entity::get() const {
+  return manager_->get_component<C>(*this);
+}
+
+template<typename C, typename ... Args>
+C &Entity::set(Args && ... args){
+  return manager_->set_component<C>(*this, std::forward<Args>(args) ...);
+}
+
+template<typename C, typename ... Args>
+C &Entity::add(Args && ... args){
+  return manager_->create_component<C>(*this, std::forward<Args>(args) ...);
+}
+
+template<typename T>
+inline T & Entity::as(){
+  ECS_ASSERT_IS_ENTITY(T);
+  ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
+  ECS_ASSERT(has(T::mask()), "Entity doesn't have required components for this EntityAlias");
+  return reinterpret_cast<T &>(*this);
+}
+
+template<typename T>
+inline T const & Entity::as() const{
+  ECS_ASSERT_IS_ENTITY(T);
+  ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
+  ECS_ASSERT(has(T::mask()), "Entity doesn't have required components for this EntityAlias");
+  return reinterpret_cast<T const &>(*this);
+}
+
+/// Assume that this entity has provided Components
+/// Use for faster component access calls
+template<typename ...Components>
+inline EntityAlias<Components...> & Entity::assume() {
+  return as<EntityAlias<Components...>>();
+}
+
+template<typename ...Components>
+inline EntityAlias<Components...> const & Entity::assume() const {
+  return as<EntityAlias<Components...>>();
+}
+
+template<typename C>
+void Entity::remove()  {
+  manager_->remove_component<C>(*this);
+}
+
+void Entity::remove_everything() {
+  manager_->remove_all_components(*this);
+}
+
+void Entity::clear_mask() {
+  manager_->clear_mask(*this);
+}
+
+void Entity::destroy() {
+  manager_->destroy(*this);
+}
+
+template<typename... Components>
+bool Entity::has() {
+  return manager_->has_component<Components ...>(*this);
+}
+
+template<typename... Components>
+bool Entity::has() const {
+  return manager_->has_component<Components ...>(*this);
+}
+
+template<typename T>
+bool Entity::is() {
+  ECS_ASSERT_IS_ENTITY(T);
+  ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
+  return has(T::mask());
+}
+
+template<typename T>
+bool Entity::is() const {
+  ECS_ASSERT_IS_ENTITY(T);
+  ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
+  return has(T::mask());
+}
+
+bool Entity::is_valid() {
+  return manager_->is_valid(*this);
+}
+
+bool Entity::is_valid() const {
+  return manager_->is_valid(*this);
+}
+
+template<typename ...Components>
+std::tuple<Components &...>  Entity::unpack() {
+  return std::forward_as_tuple(get<Components>()...);
+}
+
+template<typename ...Components>
+std::tuple<Components const &...> Entity::unpack() const{
+  return std::forward_as_tuple(get<Components>()...);
+}
+
+bool Entity::has(details::ComponentMask &check_mask)  {
+  return manager_->has_component(*this, check_mask);
+}
+
+bool Entity::has(details::ComponentMask const &check_mask) const  {
+  return manager_->has_component(*this, check_mask);
+}
+
+details::ComponentMask &Entity::mask()  {
+  return manager_->mask(*this);
+}
+details::ComponentMask const &Entity::mask() const {
+  return manager_->mask(*this);
+}
+
+inline bool operator==(const Entity &lhs, const Entity &rhs) {
+  return lhs.id_ == rhs.id_;
+}
+
+inline bool operator!=(const Entity &lhs, const Entity &rhs) {
+  return lhs.id_ != rhs.id_;
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+template<typename T>
+Iterator<T>::Iterator(EntityManager *manager, details::ComponentMask mask, bool begin) :
+  manager_(manager),
+  mask_(mask),
+  cursor_(0){
+  // Must be pool size because of potential holes
+  size_ = manager_->entity_versions_.size();
+  if (!begin) cursor_ = size_;
+  find_next();
+}
+
+template<typename T>
+Iterator<T>::Iterator(const Iterator &it) : Iterator(it.manager_, it.cursor_) { };
+
+template<typename T>
+index_t Iterator<T>::index() const {
+  return cursor_;
+}
+
+template<typename T>
+inline void Iterator<T>::find_next() {
+  while (cursor_ < size_ && (manager_->component_masks_[cursor_] & mask_) != mask_) {
+    ++cursor_;
+  }
+}
+
+template<typename T>
+Entity Iterator<T>::entity() {
+  return manager_->get_entity(index());
+}
+
+template<typename T>
+const Entity Iterator<T>::entity() const  {
+  return manager_->get_entity(index());
+}
+
+template<typename T>
+Iterator<T> &operator++(Iterator<T> & lhs) {
+  ++lhs.cursor_;
+  lhs.find_next();
+  return lhs;
+}
+
+template<typename T>
+bool operator==(Iterator<T> const &lhs, Iterator<T> const &rhs) {
+  return lhs.cursor_ == rhs.cursor_;
+}
+
+template<typename T>
+bool operator!=(Iterator<T> const &lhs, Iterator<T> const &rhs) {
+  return !(lhs == rhs);
+}
+
+template<typename T>
+inline T operator*(Iterator<T> &lhs) {
+  return lhs.entity().template as<Iterator<T>::T_no_ref>();
+}
+
+template<typename T>
+inline T const &operator*(Iterator<T> const &lhs) {
+  return lhs.entity().template as<Iterator<T>::T_no_ref>();
 }
 
 } // namespace ecs

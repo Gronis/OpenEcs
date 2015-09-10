@@ -52,12 +52,12 @@
         "Provide a function or lambda expression");                                         \
 
 #define ECS_ASSERT_IS_ENTITY(T)                                                             \
-        static_assert(std::is_base_of<BaseEntityAlias, T>::value ||                         \
+        static_assert(std::is_base_of<details::BaseEntityAlias, T>::value ||                \
                   std::is_same<Entity, T>::value ,                                          \
         #T " does not inherit EntityInterface.");
 
 #define ECS_ASSERT_ENTITY_CORRECT_SIZE(T)                                                   \
-        static_assert(sizeof(BaseEntityAlias) == sizeof(T),                                 \
+        static_assert(sizeof(details::BaseEntityAlias) == sizeof(T),                        \
         #T " should not include new variables, add them as Components instead.");           \
 
 #define ECS_ASSERT_VALID_ENTITY(E)                                                          \
@@ -79,6 +79,12 @@ typedef uint32_t index_t;
 
 /// Type used for entity version
 typedef uint8_t version_t;
+
+//TODO: remove
+class EntityManager;
+class Entity;
+template<typename ...Components>
+class EntityAlias;
 
 namespace details {
 
@@ -229,8 +235,73 @@ class Pool: public BasePool {
   const T& operator[](size_t index) const;
 };
 
-/// Only used for compile-time checks to determine if a component is a propery
+///---------------------------------------------------------------------
+/// ComponentMask is a mask defining what components and entity has.
+///---------------------------------------------------------------------
+///
+///---------------------------------------------------------------------
+typedef std::bitset<ECS_MAX_NUM_OF_COMPONENTS> ComponentMask;
+
+///--------------------------------------------------------------------
+/// Helper functions
+///--------------------------------------------------------------------
+template<typename C>
+ComponentMask component_mask();
+
+template<typename C>
+size_t component_index();
+size_t inc_component_counter();
+size_t &component_counter();
+
+///---------------------------------------------------------------------
+/// Helper class used for compile-time checks to determine if a
+/// component is a propery.
+///---------------------------------------------------------------------
 class BaseProperty{};
+
+///---------------------------------------------------------------------
+/// Helper class
+///---------------------------------------------------------------------
+class BaseEntityAlias;
+
+///---------------------------------------------------------------------
+/// Helper class
+///---------------------------------------------------------------------
+class BaseManager {
+ public:
+  virtual ~BaseManager() { };
+  virtual void remove(index_t index) = 0;
+  virtual ComponentMask mask() = 0;
+};
+
+///---------------------------------------------------------------------
+/// Helper class,  This is the main class for holding many Component of
+/// a specified type.
+///---------------------------------------------------------------------
+template<typename C>
+class ComponentManager: public BaseManager, details::forbid_copies {
+ public:
+  ComponentManager(EntityManager &manager, size_t chunk_size = ECS_DEFAULT_CHUNK_SIZE);
+
+  /// Allocate and create at specific index, using constructor
+  template<typename ...Args>
+  C&create(index_t index, Args &&... args);
+  void remove(index_t index);
+
+  C &operator[](index_t index);
+
+  C &get(index_t index);
+  C const &get(index_t index) const;
+
+  C *get_ptr(index_t index);
+  C const *get_ptr(index_t index) const;
+
+  ComponentMask mask();
+
+ private:
+  EntityManager &manager_;
+  details::Pool<C> pool_;
+}; //ComponentManager
 
 } // namespace details
 
@@ -306,6 +377,174 @@ template<typename T, typename E> T operator>>(Property<T> &lhs, const E &rhs);
 template<typename T, typename E> T operator<<(Property<T> &lhs, const E &rhs);
 
 ///---------------------------------------------------------------------
+/// Describe Id here
+///---------------------------------------------------------------------
+///
+///
+///---------------------------------------------------------------------
+class Id {
+ public:
+  Id();
+  Id(index_t index, version_t version);
+
+  inline index_t index() { return index_; }
+  inline index_t index() const { return index_; }
+
+  inline version_t version() { return version_; }
+  inline version_t version() const { return version_; }
+
+ private:
+  index_t index_;
+  version_t version_;
+  friend class Entity;
+  friend class EntityManager;
+};
+
+bool operator==(const Id& lhs, const Id &rhs);
+bool operator!=(const Id& lhs, const Id &rhs);
+
+///---------------------------------------------------------------------
+/// Entity is the identifier of an identity
+///---------------------------------------------------------------------
+///
+/// An entity consists of an id and version. The version is used to
+/// ensure that new entities allocated with the same id are separable.
+///
+/// An entity becomes invalid when destroyed.
+///
+///---------------------------------------------------------------------
+class Entity {
+ public:
+  Entity(EntityManager *manager, Id id);
+  Entity(const Entity &other);
+  Entity &operator=(const Entity &rhs);
+
+  Id &id() { return id_; }
+  Id const &id() const { return id_; }
+
+  /// Returns the requested component, or error if it doesn't exist
+  template<typename C> inline C &get();
+  template<typename C> inline C const &get() const;
+
+  /// Set the requested component, if old component exist,
+  /// a new one is created. Otherwise, the assignment operator
+  /// is used.
+  template<typename C, typename ... Args> C &set(Args &&... args);
+
+  /// Add the requested component, error if component of the same type exist already
+  template<typename C, typename ... Args> C &add(Args &&... args);
+
+  /// Access this Entity as an EntityAlias.
+  template<typename T> T &as();
+  template<typename T> T const &as() const;
+
+  /// Assume that this entity has provided Components
+  /// Use for faster component access calls
+  template<typename ...Components> EntityAlias<Components...> &assume();
+  template<typename ...Components> EntityAlias<Components...> const &assume() const;
+
+  /// Removes a component. Error of it doesn't exist
+  template<typename C> void remove();
+
+  /// Removes all components and call destructors
+  void remove_everything();
+
+  /// Clears the component mask without destroying components (faster than remove_everything)
+  void clear_mask();
+
+  /// Destroys this entity. Removes all components as well
+  void destroy();
+
+  /// Return true if entity has all specified components. False otherwise
+  template<typename... Components> bool has();
+  template<typename... Components> bool has() const;
+
+  /// Returns whether an entity is an entity alias or not
+  template<typename T> bool is();
+  template<typename T> bool is() const;
+
+  /// Returns true if entity has not been destroyed. False otherwise
+  bool is_valid();
+  bool is_valid() const;
+
+  template<typename ...Components> std::tuple<Components &...> unpack();
+  template<typename ...Components> std::tuple<Components const &...> unpack() const;
+
+ private:
+  /// Return true if entity has all specified compoents. False otherwise
+  bool has(details::ComponentMask &check_mask);
+  bool has(details::ComponentMask const &check_mask) const;
+
+  details::ComponentMask &mask();
+  details::ComponentMask const &mask() const;
+
+  EntityManager *manager_;
+  Id             id_;
+
+  friend class EntityManager;
+}; //Entity
+
+inline bool operator==(const Entity &lhs, const Entity &rhs);
+inline bool operator!=(const Entity &lhs, const Entity &rhs);
+
+///---------------------------------------------------------------------
+/// EntityAlias is a wrapper around an Entity
+///---------------------------------------------------------------------
+///
+/// An EntityAlias makes modification of the entity and other
+/// entities much easier when performing actions. It acts solely as an
+/// abstraction layer between the entity and different actions.
+///
+///---------------------------------------------------------------------
+template<typename ...Components>
+class EntityAlias;
+
+///---------------------------------------------------------------------
+/// Iterator is an iterator for iterating through the entity manager
+///---------------------------------------------------------------------
+template<typename T>
+class Iterator: public std::iterator<std::input_iterator_tag, typename std::remove_reference<T>::type> {
+  using T_no_ref = typename std::remove_reference<typename std::remove_const<T>::type>::type;
+
+ public:
+  Iterator(EntityManager *manager, details::ComponentMask mask, bool begin = true);
+  Iterator(const Iterator &it);
+  Iterator &operator=(const Iterator &rhs) = default;
+
+  inline index_t index() const;
+
+ private:
+  void find_next();
+
+  inline Entity entity();
+  inline const Entity entity() const;
+
+  EntityManager         *manager_;
+  details::ComponentMask mask_;
+  size_t                 cursor_;
+  size_t                 size_;
+}; //Iterator
+
+template<typename T> Iterator<T> &operator++(Iterator<T> & lhs);
+
+template<typename T> bool operator==(Iterator<T> const &lhs, Iterator<T> const &rhs);
+template<typename T> bool operator!=(Iterator<T> const &lhs, Iterator<T> const &rhs);
+
+template<typename T> inline T operator*(Iterator<T> &lhs);
+template<typename T> inline T const &operator*(Iterator<T> const &lhs);
+
+///---------------------------------------------------------------------
+/// Helper class that is used to access the iterator
+///---------------------------------------------------------------------
+/// @usage Calling entities.with<Components>(), returns a view
+///        that can be used to access the iterator with begin() and
+///        end() that iterates through all entities with specified
+///        Components
+///---------------------------------------------------------------------
+template<typename T>
+class View;
+
+///---------------------------------------------------------------------
 /// This is the main class for holding all Entities and Components
 ///---------------------------------------------------------------------
 ///
@@ -322,441 +561,17 @@ template<typename T, typename E> T operator<<(Property<T> &lhs, const E &rhs);
 ///
 ///---------------------------------------------------------------------
 class EntityManager: details::forbid_copies {
- public:
-  ///---------------------------------------------------------------------
-  /// Entity is the identifier of an identity
-  ///---------------------------------------------------------------------
-  ///
-  /// An entity consists of an id and version. The version is used to
-  /// ensure that new entities allocated with the same id are separable.
-  ///
-  /// An entity becomes invalid when destroyed.
-  ///
-  ///---------------------------------------------------------------------
-  class Entity;
-
-  ///---------------------------------------------------------------------
-  /// EntityAlias is a wrapper around an Entity
-  ///---------------------------------------------------------------------
-  ///
-  /// An EntityAlias makes modification of the entity and other
-  /// entities much easier when performing actions. It acts solely as an
-  /// abstraction layer between the entity and different actions.
-  ///
-  ///---------------------------------------------------------------------
-  template<typename ...Components>
-  class EntityAlias;
-
-  ///---------------------------------------------------------------------
-  /// Iterator is an iterator for iterating through the entity manager
-  ///---------------------------------------------------------------------
-  template<typename T>
-  class Iterator;
-
-  ///---------------------------------------------------------------------
-  /// Helper class that is used to access the iterator
-  ///---------------------------------------------------------------------
-  /// @usage Calling entities.with<Components>(), returns a view
-  ///        that can be used to access the iterator with begin() and
-  ///        end() that iterates through all entities with specified
-  ///        Components
-  ///---------------------------------------------------------------------
-  template<typename T>
-  class View;
-
- private:
-  ///---------------------------------------------------------------------
-  /// ComponentMask is a mask defining what components and entity has.
-  ///---------------------------------------------------------------------
-  ///
-  ///---------------------------------------------------------------------
-  typedef std::bitset<ECS_MAX_NUM_OF_COMPONENTS> ComponentMask;
-
-  ///---------------------------------------------------------------------
-  /// Helper class
-  ///---------------------------------------------------------------------
-  class BaseEntityAlias;
-
-  ///---------------------------------------------------------------------
-  /// Helper class
-  ///---------------------------------------------------------------------
-  class BaseManager;
-
-  ///---------------------------------------------------------------------
-  /// Helper class,  This is the main class for holding many Component of
-  /// a specified type.
-  ///---------------------------------------------------------------------
-  template<typename T>
-  class ComponentManager;
-
   ///////////////////////////////////////////////////////////////////////
   ///
   /// ----------------------Implementation-------------------------------
   ///
   ///////////////////////////////////////////////////////////////////////
  private:
-  class BaseManager {
-   public:
-    virtual ~BaseManager() { };
-    virtual void remove(index_t index) = 0;
-    virtual ComponentMask mask() = 0;
-  };
-
-  template<typename C>
-  class ComponentManager: public BaseManager, details::forbid_copies {
-   public:
-    ComponentManager(EntityManager &manager, size_t chunk_size = ECS_DEFAULT_CHUNK_SIZE) :
-        manager_(manager),
-        pool_(chunk_size) { }
-
-    /// Allocate and create at specific index, using constructor
-    template<typename ...Args>
-    auto create(index_t index, Args &&... args) ->
-    typename std::enable_if<std::is_constructible<C, Args...>::value, C &>::type {
-      pool_.ensure_min_size(index + 1);
-      new(get_ptr(index)) C(std::forward<Args>(args)...);
-      return get(index);
-    }
-
-    template<typename ...Args>
-    auto create(index_t index, Args &&... args) ->
-    typename std::enable_if<
-        !std::is_constructible<C, Args...>::value &&
-            !std::is_base_of<details::BaseProperty, C>::value, C &>::type {
-      pool_.ensure_min_size(index + 1);
-      new(get_ptr(index)) C{std::forward<Args>(args)...};
-      return get(index);
-    }
 
 
-    template<typename ...Args>
-    auto create(index_t index, Args &&... args) ->
-    typename std::enable_if<
-        !std::is_constructible<C, Args...>::value &&
-            std::is_base_of<details::BaseProperty, C>::value, C &>::type {
-      static_assert(sizeof...(Args) <= 1, ECS_ASSERT_MSG_ONLY_ONE_ARGS_PROPERTY_CONSTRUCTOR);
-      pool_.ensure_min_size(index + 1);
-      new(get_ptr(index)) typename C::ValueType(std::forward<Args>(args)...);
-      return get(index);
-    }
 
-    inline void remove(index_t index) {
-      pool_.destroy(index);
-      manager_.mask(index).reset(component_index<C>());
-    }
-
-    inline C &operator[](index_t index) {
-      return get(index);
-    }
-
-    inline C &get(index_t index) {
-      return *get_ptr(index);
-    }
-
-    inline C const &get(index_t index) const {
-      return *get_ptr(index);
-    }
-   private:
-    inline C *get_ptr(index_t index) {
-      return pool_.get_ptr(index);
-    }
-
-    inline C const *get_ptr(index_t index) const {
-      return pool_.get_ptr(index);
-    }
-
-    inline ComponentMask mask() {
-      return component_mask<C>();
-    }
-
-    EntityManager &manager_;
-    details::Pool<C> pool_;
-
-    friend class EntityManager;
-  }; //ComponentManager
 
  public:
-  class Entity {
-   public:
-    class Id {
-     public:
-      Id() { }
-
-      Id(index_t index, version_t version) : index_(index), version_(version) { }
-
-      inline bool operator==(const Id &rhs) const {
-        return index_ == rhs.index_ && version_ == rhs.version_;
-      }
-
-      inline bool operator!=(const Id &rhs) const {
-        return index_ != rhs.index_ || version_ != rhs.version_;
-      }
-
-      inline index_t index() {
-        return index_;
-      }
-
-      inline index_t index() const {
-        return index_;
-      }
-
-      inline version_t version() {
-        return version_;
-      }
-
-      inline version_t version() const {
-        return version_;
-      }
-
-     private:
-      index_t index_;
-      version_t version_;
-      friend class Entity;
-      friend class EntityManager;
-    };
-
-    Entity(EntityManager *manager, Id id) :
-        manager_(manager),
-        id_(id) {
-    }
-
-    Entity(const Entity &other) :
-        Entity(other.manager_, other.id_) {
-    }
-
-    Id &id() {
-      return id_;
-    };
-
-    Id const &id() const {
-      return id_;
-    };
-
-    inline Entity &operator=(const Entity &rhs) {
-      manager_ = rhs.manager_;
-      id_ = rhs.id_;
-      return *this;
-    }
-
-    inline bool operator==(const Entity &rhs) const {
-      return id_ == rhs.id_;
-    }
-
-    inline bool operator!=(const Entity &rhs) const {
-      return id_ != rhs.id_;
-    }
-
-    /// Returns the requested component, or error if it doesn't exist
-    template<typename C>
-    inline C &get() {
-      return manager_->get_component<C>(*this);
-    }
-
-    template<typename C>
-    inline C const &get() const {
-      return manager_->get_component<C>(*this);
-    }
-
-    /// Set the requested component, if old component exist,
-    /// a new one is created. Otherwise, the assignment operator
-    /// is used.
-    template<typename C, typename ... Args>
-    inline C &set(Args &&... args) {
-      return manager_->set_component<C>(*this, std::forward<Args>(args) ...);
-    }
-
-    /// Add the requested component, error if component of the same type exist already
-    template<typename C, typename ... Args>
-    inline C &add(Args &&... args) {
-      return manager_->create_component<C>(*this, std::forward<Args>(args) ...);
-    }
-
-    /// Access this Entity as an EntityAlias.
-    template<typename T>
-    inline T &as() {
-      ECS_ASSERT_IS_ENTITY(T);
-      ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
-      ECS_ASSERT(has(T::mask()), "Entity doesn't have required components for this EntityAlias");
-      return reinterpret_cast<T &>(*this);
-    }
-
-    template<typename T>
-    inline T const &as() const {
-      ECS_ASSERT_IS_ENTITY(T);
-      ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
-      ECS_ASSERT(has(T::mask()), "Entity doesn't have required components for this EntityAlias");
-      return reinterpret_cast<T const &>(*this);
-    }
-
-    /// Assume that this entity has provided Components
-    /// Use for faster component access calls
-    template<typename ...Components>
-    inline EntityAlias<Components...> &assume() {
-      return as<EntityAlias<Components...>>();
-    }
-
-    template<typename ...Components>
-    inline EntityAlias<Components...> const &assume() const {
-      return as<EntityAlias<Components...>>();
-    }
-
-    /// Removes a component. Error of it doesn't exist
-    template<typename C>
-    inline void remove() {
-      manager_->remove_component<C>(*this);
-    }
-
-    /// Removes all components and call destructors
-    inline void remove_everything() {
-      manager_->remove_all_components(*this);
-    }
-
-    /// Clears the component mask without destroying components (faster than remove_everything)
-    inline void clear_mask() {
-      manager_->clear_mask(*this);
-    }
-
-    /// Destroys this entity. Removes all components as well
-    inline void destroy() {
-      manager_->destroy(*this);
-    }
-    /// Return true if entity has all specified components. False otherwise
-    template<typename... Components>
-    inline bool has() {
-      return manager_->has_component<Components ...>(*this);
-    }
-
-    template<typename... Components>
-    inline bool has() const {
-      return manager_->has_component<Components ...>(*this);
-    }
-
-    /// Returns whether an entity is an entity alias or not
-    template<typename T>
-    inline bool is() {
-      ECS_ASSERT_IS_ENTITY(T);
-      ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
-      return has(T::mask());
-    }
-
-    template<typename T>
-    inline bool is() const {
-      ECS_ASSERT_IS_ENTITY(T);
-      ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
-      return has(T::mask());
-    }
-
-    /// Returns true if entity has not been destroyed. False otherwise
-    inline bool is_valid() {
-      return manager_->is_valid(*this);
-    }
-
-    inline bool is_valid() const {
-      return manager_->is_valid(*this);
-    }
-
-    template<typename ...Components>
-    std::tuple<Components &...> unpack() {
-      return std::forward_as_tuple(get<Components>()...);
-    }
-
-    template<typename ...Components>
-    std::tuple<Components const &...> unpack() const {
-      return std::forward_as_tuple(get<Components>()...);
-    }
-
-   private:
-
-    /// Return true if entity has all specified compoents. False otherwise
-    inline bool has(ComponentMask &check_mask) {
-      return manager_->has_component(*this, check_mask);
-    }
-    inline bool has(const ComponentMask &check_mask) const {
-      return manager_->has_component(*this, check_mask);
-    }
-
-    inline ComponentMask &mask() {
-      return manager_->mask(*this);
-    }
-
-    inline ComponentMask const &mask() const {
-      return manager_->mask(*this);
-    }
-    EntityManager *manager_;
-    Id id_;
-    friend class EntityManager;
-  }; //Entity
-
-  template<typename T>
-  class Iterator: public std::iterator<std::input_iterator_tag, typename std::remove_reference<T>::type> {
-    typedef typename std::remove_reference<typename std::remove_const<T>::type>::type T_no_ref;
-   public:
-
-    Iterator(EntityManager *manager, ComponentMask mask, bool begin = true) :
-        manager_(manager),
-        mask_(mask) {
-      // Must be pool size because of potential holes
-      size_ = manager_->entity_versions_.size();
-      if (!begin) {
-        cursor_ = size_;
-      }
-      find_next();
-    };
-
-    Iterator(const Iterator &it) : Iterator(it.manager_, it.cursor_) { };
-
-    Iterator &operator=(const Iterator &rhs) {
-      manager_ = rhs.manager_;
-      cursor_ = rhs.cursor_;
-      return *this;
-    }
-
-    Iterator &operator++() {
-      ++cursor_;
-      find_next();
-      return *this;
-    }
-
-    bool operator==(const Iterator &rhs) const {
-      return cursor_ == rhs.cursor_;
-    }
-
-    bool operator!=(const Iterator &rhs) const {
-      return !(*this == rhs);
-    }
-
-    inline T operator*() {
-      return entity().template as<T_no_ref>();
-    }
-
-    inline T const &operator*() const {
-      return entity().template as<T_no_ref>();
-    }
-
-    inline index_t index() const {
-      return cursor_;
-    }
-
-   private:
-    inline void find_next() {
-      while (cursor_ < size_ && (manager_->component_masks_[cursor_] & mask_) != mask_) {
-        ++cursor_;
-      }
-    }
-
-    inline Entity entity() {
-      return manager_->get_entity(index());
-    }
-
-    inline const Entity entity() const {
-      return manager_->get_entity(index());
-    }
-
-    EntityManager *manager_;
-    ComponentMask mask_;
-    size_t cursor_ = 0;
-    size_t size_;
-  }; //Iterator
 
   template<typename T>
   class View {
@@ -1300,46 +1115,6 @@ class EntityManager: details::forbid_copies {
     index_to_component_mask.resize(block_count_ + 1);
     next_free_indexes_[block_count_] = next_free_index;
     index_to_component_mask[block_count_] = mask_as_ulong;
-  }
-
-  //C1 should not be Entity
-  template<typename C>
-  static inline auto component_mask() -> typename
-  std::enable_if<!std::is_same<C, Entity>::value, ComponentMask>::type {
-    ComponentMask mask = ComponentMask((1UL << component_index<C>()));
-    return mask;
-  }
-
-  //When C1 is Entity, ignore
-  template<typename C>
-  static inline auto component_mask() -> typename
-  std::enable_if<std::is_same<C, Entity>::value, ComponentMask>::type {
-    return ComponentMask(0);
-  }
-
-  //recursive function for component_mask creation
-  template<typename C1, typename C2, typename ...Cs>
-  static inline auto component_mask() -> typename
-  std::enable_if<!std::is_same<C1, Entity>::value, ComponentMask>::type {
-    ComponentMask mask = component_mask<C1>() | component_mask<C2, Cs...>();
-    return mask;
-  }
-
-  template<typename C>
-  static size_t component_index() {
-    static size_t index = inc_component_counter();
-    return index;
-  }
-
-  static size_t inc_component_counter() {
-    size_t index = component_counter()++;
-    ECS_ASSERT(index < ECS_MAX_NUM_OF_COMPONENTS, "maximum number of components exceeded.");
-    return index;
-  }
-
-  static size_t &component_counter() {
-    static size_t counter = 0;
-    return counter;
   }
 
   template<typename C, typename ...Args>
