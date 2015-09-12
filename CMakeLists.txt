@@ -12,7 +12,7 @@ set( CMAKE_MODULE_PATH "${PROJ_PATH}/cmake")
 set( EXECUTABLE_OUTPUT_PATH ${PROJ_OUT_PATH})
 
 set( PROJ_LIB_PATH  "${PROJ_PATH}/lib" )
-set( PROJ_INCLUDES  "${PROJ_PATH}/src")
+set( PROJ_INCLUDES  "${PROJ_PATH}/include")
 set( PROJ_TEST_INCLUDES "${PROJ_PATH}/test")
 set( LIB_INCLUDES "${PROJ_LIB_PATH}/include")
 
@@ -43,17 +43,17 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Adds sources and headers to project
-file( GLOB_RECURSE PROJ_SOURCES src/*.cpp )
-file( GLOB_RECURSE PROJ_HEADERS src/*.h )
+file( GLOB_RECURSE PROJ_SOURCES include/*.cpp)
+file( GLOB_RECURSE PROJ_HEADERS include/*.h)
 file( GLOB_RECURSE PROJ_TEST_SOURCES test/common/*.cpp )
 file( GLOB_RECURSE PROJ_TEST_HEADERS test/common/*.hpp )
 include_directories( ${PROJ_INCLUDES} ${LIB_INCLUDES} ${PROJ_TEST_INCLUDES})
 
-#Tests
+# Tests
 enable_testing()
-add_executable( UnitTests ${PROJ_TEST_SOURCES} test/ecs/ecs.cpp ${PROJ_TEST_HEADERS} ${PROJ_HEADERS})
-add_executable( PerformanceTests ${PROJ_TEST_SOURCES} test/ecs/ecs_performance.cpp ${PROJ_TEST_HEADERS} ${PROJ_HEADERS})
-add_executable( Example src/ecs/examples/example.cpp ${PROJ_HEADERS})
+add_executable( UnitTests ${PROJ_TEST_SOURCES} test/ecs.cpp ${PROJ_TEST_HEADERS} ${PROJ_HEADERS})
+add_executable( PerformanceTests ${PROJ_TEST_SOURCES} test/ecs_performance.cpp ${PROJ_TEST_HEADERS} ${PROJ_HEADERS})
+add_executable( Example include/examples/example.cpp ${PROJ_HEADERS})
 
 add_test( UnitTests UnitTests)
 add_test( PerformanceTests PerformanceTests)
@@ -61,3 +61,4 @@ add_test( PerformanceTests PerformanceTests)
 install(TARGETS UnitTests DESTINATION ${PROJ_OUT_PATH})
 install(TARGETS PerformanceTests DESTINATION ${PROJ_OUT_PATH})
 install(TARGETS Example DESTINATION ${PROJ_OUT_PATH})
+

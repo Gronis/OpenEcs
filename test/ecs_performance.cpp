@@ -20,7 +20,7 @@
 
 #include "common/thirdparty/catch.hpp"
 
-#include "ecs/ecs.h"
+#include "ecs.h"
 
 using namespace ecs;
 

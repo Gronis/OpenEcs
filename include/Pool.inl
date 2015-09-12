@@ -28,9 +28,6 @@ void BasePool::ensure_min_capacity(size_t min_capacity) {
   }
 }
 
-
-//////////////////////////////////////////////////////////////////////////////
-
 template<typename T>
 Pool<T>::Pool(size_t chunk_size) : BasePool(sizeof(T), chunk_size) { }
 

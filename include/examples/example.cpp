@@ -15,12 +15,13 @@
 /// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <iostream>
-#include "ecs/ecs.h"
+#include "ecs.h"
 
 using namespace ecs;
 
 //Components as properties, we skip defining a constructor, since we
 //don't do anything unusual.
+
 struct Health : Property<int>{};
 struct Mana   : Property<int>{};
 struct Name   : Property<std::string>{};

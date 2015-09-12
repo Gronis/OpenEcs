@@ -14,9 +14,10 @@
 /// You should have received a copy of the GNU General Public License
 /// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#pragma once
-#ifndef ECS_SINGLE_HEADER
-#define ECS_SINGLE_HEADER
+/// This file includes all other parts of the library. This files is
+/// included when the single header is generated.
+#ifndef ECS_MAIN_INCLUDE
+#define ECS_MAIN_INCLUDE
 
 #include <bitset>
 #include <vector>
@@ -123,4 +124,4 @@ class SystemManager: details::forbid_copies {
 using System = SystemManager::System;
 } // namespace ecs
 
-#endif //Header guard
+#endif //ECS_MAIN_INCLUDE
