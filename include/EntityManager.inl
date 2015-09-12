@@ -76,7 +76,6 @@ auto EntityManager::create(Args && ... args) ->
 typename std::enable_if<std::is_constructible<T, Args...>::value, T>::type {
   ECS_ASSERT_IS_ENTITY(T);
   ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
-  typedef typename T::Type Type;
   auto mask = T::mask();
   Entity entity = create_with_mask(mask);
   T *entity_alias = new(&entity) T(std::forward<Args>(args)...);

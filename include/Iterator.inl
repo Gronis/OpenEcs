@@ -13,7 +13,7 @@ Iterator<T>::Iterator(EntityManager *manager, details::ComponentMask mask, bool 
 }
 
 template<typename T>
-Iterator<T>::Iterator(const Iterator &it) : Iterator(it.manager_, it.cursor_) { };
+Iterator<T>::Iterator(const Iterator &it) : Iterator(it.manager_, it.cursor_) { }
 
 template<typename T>
 index_t Iterator<T>::index() const {

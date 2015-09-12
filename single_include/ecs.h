@@ -1,6 +1,6 @@
 ///
 /// OpenEcs v0.x.x
-/// Generated: 2015-09-12 21:05:13.144140
+/// Generated: 2015-09-12 21:25:43.518278
 /// ----------------------------------------------------------
 /// This file has been generated from multiple files. Do not modify
 /// ----------------------------------------------------------
@@ -1450,7 +1450,6 @@ auto EntityManager::create(Args && ... args) ->
 typename std::enable_if<std::is_constructible<T, Args...>::value, T>::type {
   ECS_ASSERT_IS_ENTITY(T);
   ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
-  typedef typename T::Type Type;
   auto mask = T::mask();
   Entity entity = create_with_mask(mask);
   T *entity_alias = new(&entity) T(std::forward<Args>(args)...);
@@ -2236,7 +2235,7 @@ Iterator<T>::Iterator(EntityManager *manager, details::ComponentMask mask, bool 
 }
 
 template<typename T>
-Iterator<T>::Iterator(const Iterator &it) : Iterator(it.manager_, it.cursor_) { };
+Iterator<T>::Iterator(const Iterator &it) : Iterator(it.manager_, it.cursor_) { }
 
 template<typename T>
 index_t Iterator<T>::index() const {
