@@ -19,7 +19,7 @@ slightly became a library with a different approach than the others.
 OpenECS focuses on clean and understandable code that compiles to something with good performance, with good defaults, but still providing the ability to configure alternative behaviours when necessary.
 
 ##Installation
-Just [Download](https://github.com/Gronis/OpenEcs/raw/master/src/ecs/ecs.h) the header and include it into your project.
+Just [Download](https://github.com/Gronis/OpenEcs/raw/master/single_include/ecs.h) the header and include it into your project.
 Make sure to enable c++11 when compiling. (-std=c++11 or -std=c++0x)
 
 ##Standard Feature's:
