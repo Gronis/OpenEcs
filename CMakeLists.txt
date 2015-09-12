@@ -53,7 +53,7 @@ include_directories( ${PROJ_INCLUDES} ${LIB_INCLUDES} ${PROJ_TEST_INCLUDES})
 enable_testing()
 add_executable( UnitTests ${PROJ_TEST_SOURCES} test/ecs.cpp ${PROJ_TEST_HEADERS} ${PROJ_HEADERS})
 add_executable( PerformanceTests ${PROJ_TEST_SOURCES} test/ecs_performance.cpp ${PROJ_TEST_HEADERS} ${PROJ_HEADERS})
-add_executable( Example include/examples/example.cpp ${PROJ_HEADERS})
+add_executable( Example examples/example.cpp ${PROJ_HEADERS})
 
 add_test( UnitTests UnitTests)
 add_test( PerformanceTests PerformanceTests)
