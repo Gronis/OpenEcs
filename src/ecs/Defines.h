@@ -29,7 +29,7 @@
 #define ECS_ASSERT_IS_ENTITY(T)                                                             \
             static_assert(std::is_base_of<details::BaseEntityAlias, T>::value ||            \
                       std::is_same<Entity, T>::value ,                                      \
-            #T " does not inherit EntityInterface.");
+            #T " does not inherit EntityAlias.");
 
 #define ECS_ASSERT_ENTITY_CORRECT_SIZE(T)                                                   \
             static_assert(sizeof(details::BaseEntityAlias) == sizeof(T),                    \
