@@ -116,13 +116,6 @@ has_health = entity.has<Health>(); //Returns true
 
 ```
 
-Every component type gets its own id and a component masks tracks what components each entity has. By default, the max number of component types that can be used with OpenEcs is 64. This can be changed with a define like this BEFORE including the header.
-
-```cpp
-#define  ECS_MAX_NUM_OF_COMPONENTS 128
-#include "ecs/ecs.h"
-``` 
-
 ### Removing Entities and Components
 
 Destroying an entity can be done using the destroy method
@@ -494,6 +487,29 @@ if(entity.get<Health>().value > 10){
 ```
 NOTE: Remember that any class can be a component, and that it is optional to use Property\<T\>, as overriding operators is not always desired. For those who does not what to use overridden operators, leave out the Property\<T\> class.
 
+###Memory
+
+The memory for components and entities are handled manually by OpenEcs. Entities are nothing more than a placeholder with its ID, and a pointer to its EntityManager. Entities are not stored, but created when returned from the API.
+
+The ID for an entity is its index (Where its located) and a version (When reusing old indexes for removed entities). All versions for an Entity is stored in a std::vector continuously in memory, as a number.
+
+Every component type gets its own id and a component mask tracks what components each entity has. These masks are placed in a std::vector, like the versions. By default, the max number of component types that can be used with OpenEcs is 64. This can be changed with a define like this BEFORE including the header.
+
+```cpp
+#define  ECS_MAX_NUM_OF_COMPONENTS 128
+#include "ecs/ecs.h"
+``` 
+
+<img src="img/componentmask_version_vector.png"/>
+
+Each component is handled by a component manager, which is basically a memory pool. The chunk size for a component manager's memory pool is <i>64 * s</i>, where <i>s</i> is the size of the component for the component manager. The number 64 is there because one chunk should at least fit on one or more cachelines in memory. There is no point in making it larger, and smaller reduces performance. Just as the versions, each component is located at the index for its entity ID.
+
+<img src="img/component_memory_pool.png"/>
+
+The EntityManager allocates memory for each entity to have every component. This might sound stupid, but once memory is allocated, not using it does not cost any cpu time, and we still want the opportunity to add any component to an entity. However it's not cheap to load memory into the cpu. Therefore, the EntityManager tries to put "similar" entities together in memory when they are created. More how to do this can be read in the Performance section.
+
+
+
 ###Performance
 
 On my Apple MBP Retina 13" 2014 computer, this is some performance tests using 10 000 000 entities with some components 
@@ -525,6 +541,20 @@ Entity e = entities.create();
 e.add<SomeComponent>();
 e.add<SomeOtherComponent>();
 ```
+
+By doing this instead:
+
+```cpp
+// Here the EntityManager knows what components the Entity will 
+// have, and will put it close to other entities which also had
+// these components when created.
+Entity e = entities.create_with<SomeComponent, SomeOtherComponent>(/* Args here */);
+//or
+auto e = entities.create<SomeEntityAlias>(/* Constructor args for SomeEntityAlias here */);
+```
+
+NOTE: Of course this means that adding or removing components from entities will result in cache misses anyway. This cannot be resolved, unless the entity components is moved in memory, which breaks the idea of that the index is part of the Entity ID. However, it is most likely that entities will retain most of its components over its lifecycle, and therefore, providing this information should result in a performance boost.
+
 
 To improve performance iterate by using auto when iterating with a for loop
 
