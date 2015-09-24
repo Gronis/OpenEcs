@@ -493,7 +493,7 @@ The memory for components and entities are handled manually by OpenEcs. Entities
 
 The ID for an entity is its index (Where its located) and a version (When reusing old indexes for removed entities). All versions for an Entity is stored in a std::vector continuously in memory, as a number.
 
-Every component type gets its own id and a component mask tracks what components each entity has. These masks are placed in a std::vector, like the versions. By default, the max number of component types that can be used with OpenEcs is 64. This can be changed with a define like this BEFORE including the header.
+Every component type gets its own id and a component mask, which tracks what components each entity has. These masks are placed in a std::vector, like the versions. Each bit represents if an entity has a component. By default, the component mask size is 64bits, which means that the max number of component types that can be used with OpenEcs is 64. This can be changed with a define like this BEFORE including the header. In this example, each component mask will be 128bits, and can therefore, OpenEcs will be able to keep track of 128 different component types.
 
 ```cpp
 #define  ECS_MAX_NUM_OF_COMPONENTS 128
@@ -502,11 +502,11 @@ Every component type gets its own id and a component mask tracks what components
 
 <img src="img/componentmask_version_vector.png"/>
 
-Each component is handled by a component manager, which is basically a memory pool. The chunk size for a component manager's memory pool is <i>64 * s</i>, where <i>s</i> is the size of the component for the component manager. The number 64 is there because one chunk should at least fit on one or more cachelines in memory. There is no point in making it larger, and smaller reduces performance. Just as the versions, each component is located at the index for its entity ID.
+Each component is handled by a component manager, which is basically a memory pool. The chunk size for a component manager's memory pool is <i>64 * s</i> bytes, where <i>s</i> is the size of the component for the component manager. The number 64 is there because one chunk should at least fit on one or more cachelines in memory. There is no point in making it larger, and smaller reduces performance. Just as the versions, each component is located at the index for its entity ID.
 
 <img src="img/component_memory_pool.png"/>
 
-The EntityManager allocates memory for each entity to have every component. This might sound stupid, but once memory is allocated, not using it does not cost any cpu time, and we still want the opportunity to add any component to an entity. However it's not cheap to load memory into the cpu. Therefore, the EntityManager tries to put "similar" entities together in memory when they are created. More how to do this can be read in the Performance section.
+The EntityManager allocates memory for each entity to have every component. This might sound stupid, but once memory is allocated, not using it does not cost any cpu time, and we still want the opportunity to add any component to an entity. However it's not cheap to load memory into the cpu. Therefore, the EntityManager tries to put "similar" entities together in memory when they are created. More about this can be read in the Performance section.
 
 
 
