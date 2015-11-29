@@ -11,9 +11,7 @@ BaseEntityAlias::BaseEntityAlias(const BaseEntityAlias &other) : entity_(other.e
 } // namespace details
 
 template<typename ...Cs>
-EntityAlias<Cs...>::EntityAlias(const Entity &entity) : details::BaseEntityAlias(entity) {
-  ECS_ASSERT(entity.has(static_mask()), "Cannot create EntityAlias from Entity when missing required components");
-}
+EntityAlias<Cs...>::EntityAlias(const Entity &entity) : details::BaseEntityAlias(entity) {}
 
 
 template<typename ...Cs>

@@ -713,10 +713,13 @@ SCENARIO("Testing ecs framework, unittests") {
 
     WHEN("Creating car implicitly by using create_with<Wheels>()"){
       Car c = entities.create_with<Wheels>();
+      THEN("Car should have wheels"){
+        REQUIRE(c.has<Wheels>());
+      }
     }
 
     WHEN("Creating car implicitly by using create_with<Health>(), should not work"){
-      REQUIRE_THROWS({ Car c = entities.create_with<Health>(); });
+      REQUIRE_THROWS({ Car c = entities.create_with<Health>(); c.get<Wheels>(); });
     }
 
     WHEN("Adding 1 entity, 1 car, then 1 entity in sequence") {
@@ -778,6 +781,7 @@ SCENARIO("Testing ecs framework, unittests") {
           THEN("Entity should be removed.") {
             REQUIRE(!e.is_valid());
             REQUIRE(entities.count() == 0);
+
           }
         }
       }
