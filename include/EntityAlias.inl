@@ -29,11 +29,12 @@ EntityAlias<Cs...>::operator Entity const &() const {
 template<typename ...Cs> template<typename T>
 EntityAlias<Cs...>::operator const T &() const{
   return as<T>();
-};
+}
+
 template<typename ...Cs> template<typename T>
 EntityAlias<Cs...>::operator T &(){
   return as<T>();
-};
+}
 
 template<typename ...Cs>
 Id &EntityAlias<Cs...>::id() {

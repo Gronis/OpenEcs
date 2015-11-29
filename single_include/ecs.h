@@ -1,6 +1,6 @@
 ///
 /// OpenEcs v0.1.101
-/// Generated: 2015-11-29 23:41:39.542367
+/// Generated: 2015-11-29 23:44:21.265573
 /// ----------------------------------------------------------
 /// This file has been generated from multiple files. Do not modify
 /// ----------------------------------------------------------
@@ -1086,11 +1086,12 @@ EntityAlias<Cs...>::operator Entity const &() const {
 template<typename ...Cs> template<typename T>
 EntityAlias<Cs...>::operator const T &() const{
   return as<T>();
-};
+}
+
 template<typename ...Cs> template<typename T>
 EntityAlias<Cs...>::operator T &(){
   return as<T>();
-};
+}
 
 template<typename ...Cs>
 Id &EntityAlias<Cs...>::id() {
