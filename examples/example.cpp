@@ -16,6 +16,7 @@
 
 #include <iostream>
 #include "ecs.h"
+#include "ecs.h"
 
 using namespace ecs;
 

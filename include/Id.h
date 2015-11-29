@@ -11,8 +11,8 @@ namespace ecs{
 ///---------------------------------------------------------------------
 class Id {
  public:
-  Id();
-  Id(index_t index, version_t version);
+  inline Id();
+  inline Id(index_t index, version_t version);
 
   inline index_t index() { return index_; }
   inline index_t index() const { return index_; }
@@ -27,8 +27,8 @@ class Id {
   friend class EntityManager;
 };
 
-bool operator==(const Id& lhs, const Id &rhs);
-bool operator!=(const Id& lhs, const Id &rhs);
+inline bool operator==(const Id& lhs, const Id &rhs);
+inline bool operator!=(const Id& lhs, const Id &rhs);
 
 } // namespace ecs
 

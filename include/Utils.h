@@ -102,12 +102,12 @@ class forbid_copies {
 /// Helper functions
 ///--------------------------------------------------------------------
 
-size_t &component_counter() {
+inline size_t &component_counter() {
   static size_t counter = 0;
   return counter;
 }
 
-size_t inc_component_counter()  {
+inline size_t inc_component_counter()  {
   size_t index = component_counter()++;
   ECS_ASSERT(index < ECS_MAX_NUM_OF_COMPONENTS, "maximum number of components exceeded.");
   return index;

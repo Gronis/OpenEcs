@@ -16,68 +16,68 @@ namespace ecs{
 ///---------------------------------------------------------------------
 class Entity {
  public:
-  Entity(EntityManager *manager, Id id);
-  Entity(const Entity &other);
-  Entity &operator=(const Entity &rhs);
+  inline Entity(EntityManager *manager, Id id);
+  inline Entity(const Entity &other);
+  inline Entity &operator=(const Entity &rhs);
 
-  Id &id() { return id_; }
-  Id const &id() const { return id_; }
+  inline Id &id() { return id_; }
+  inline Id const &id() const { return id_; }
 
   /// Returns the requested component, or error if it doesn't exist
-  template<typename C> C &get();
-  template<typename C> C const &get() const;
+  template<typename C> inline C &get();
+  template<typename C> inline C const &get() const;
 
   /// Set the requested component, if old component exist,
   /// a new one is created. Otherwise, the assignment operator
   /// is used.
-  template<typename C, typename ... Args> C &set(Args &&... args);
+  template<typename C, typename ... Args> inline C &set(Args &&... args);
 
   /// Add the requested component, error if component of the same type exist already
-  template<typename C, typename ... Args> C &add(Args &&... args);
+  template<typename C, typename ... Args> inline C &add(Args &&... args);
 
   /// Access this Entity as an EntityAlias.
-  template<typename T> T &as();
-  template<typename T> T const &as() const;
+  template<typename T> inline T &as();
+  template<typename T> inline T const &as() const;
 
   /// Assume that this entity has provided Components
   /// Use for faster component access calls
-  template<typename ...Components> EntityAlias<Components...> &assume();
-  template<typename ...Components> EntityAlias<Components...> const &assume() const;
+  template<typename ...Components> inline EntityAlias<Components...> &assume();
+  template<typename ...Components> inline EntityAlias<Components...> const &assume() const;
 
   /// Removes a component. Error of it doesn't exist
-  template<typename C> void remove();
+  template<typename C> inline void remove();
 
   /// Removes all components and call destructors
-  void remove_everything();
+  void inline remove_everything();
 
   /// Clears the component mask without destroying components (faster than remove_everything)
-  void clear_mask();
+  void inline clear_mask();
 
   /// Destroys this entity. Removes all components as well
-  void destroy();
+  void inline destroy();
 
   /// Return true if entity has all specified components. False otherwise
-  template<typename... Components> bool has();
-  template<typename... Components> bool has() const;
+  template<typename... Components> inline bool has();
+  template<typename... Components> inline bool has() const;
 
   /// Returns whether an entity is an entity alias or not
-  template<typename T> bool is();
-  template<typename T> bool is() const;
+  template<typename T> inline bool is();
+  template<typename T> inline bool is() const;
 
   /// Returns true if entity has not been destroyed. False otherwise
-  bool is_valid();
-  bool is_valid() const;
+  bool inline is_valid();
+  bool inline is_valid() const;
 
-  template<typename ...Components> std::tuple<Components &...> unpack();
-  template<typename ...Components> std::tuple<Components const &...> unpack() const;
+  template<typename ...Components> inline std::tuple<Components &...> unpack();
+  template<typename ...Components> inline std::tuple<Components const &...> unpack() const;
 
  private:
   /// Return true if entity has all specified compoents. False otherwise
-  bool has(details::ComponentMask &check_mask);
-  bool has(details::ComponentMask const &check_mask) const;
+  inline bool has(details::ComponentMask &check_mask);
+  inline bool has(details::ComponentMask const &check_mask) const;
 
-  details::ComponentMask &mask();
-  details::ComponentMask const &mask() const;
+  inline details::ComponentMask &mask();
+  inline details::ComponentMask const &mask() const;
 
   EntityManager *manager_;
   Id             id_;

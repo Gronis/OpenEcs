@@ -502,7 +502,7 @@ Every component type gets its own id and a component mask, which tracks what com
 
 <img src="img/componentmask_version_vector.png"/>
 
-Each component is handled by a component manager, which is basically a memory pool. The chunk size for a component manager's memory pool is <i>64 * s</i> bytes, where <i>s</i> is the size of the component for the component manager. The number 64 is there because one chunk should at least fit on one or more cachelines in memory. There is no point in making it larger, and smaller reduces performance. Just as the versions, each component is located at the index for its entity ID.
+Each component type is handled by a component manager, which is basically a memory pool. The chunk size for a component manager's memory pool is <i>64 * s</i> bytes, where <i>s</i> is the size of the component type for the component manager. The number 64 is there because one chunk should at least fit on one or more cachelines in memory. There is no point in making it larger, and smaller reduces performance. Just as the versions, each component is located at the index for its entity ID.
 
 <img src="img/component_memory_pool.png"/>
 

@@ -19,14 +19,14 @@ namespace details {
 ///---------------------------------------------------------------------
 class BasePool: forbid_copies {
  public:
-  explicit BasePool(size_t element_size, size_t chunk_size = ECS_DEFAULT_CHUNK_SIZE);
-  virtual ~BasePool();
+  inline explicit BasePool(size_t element_size, size_t chunk_size = ECS_DEFAULT_CHUNK_SIZE);
+  inline virtual ~BasePool();
 
-  index_t size() const { return size_; }
-  index_t capacity() const { return capacity_; }
-  size_t chunks() const { return chunks_.size(); }
-  void ensure_min_size(std::size_t size);
-  void ensure_min_capacity(size_t min_capacity);
+  inline index_t size() const { return size_; }
+  inline index_t capacity() const { return capacity_; }
+  inline size_t chunks() const { return chunks_.size(); }
+  inline void ensure_min_size(std::size_t size);
+  inline void ensure_min_capacity(size_t min_capacity);
 
   virtual void destroy(index_t index) = 0;
 
@@ -54,16 +54,16 @@ class Pool: public BasePool {
  public:
   Pool(size_t chunk_size);
 
-  virtual void destroy(index_t index) override;
+  inline virtual void destroy(index_t index) override;
 
-  T *get_ptr(index_t index);
-  const T *get_ptr(index_t index) const;
+  inline T *get_ptr(index_t index);
+  inline const T *get_ptr(index_t index) const;
 
-  T &get(index_t index);
-  const T &get(index_t index) const;
+  inline T &get(index_t index);
+  inline const T &get(index_t index) const;
 
-  T &operator[](size_t index);
-  const T &operator[](size_t index) const;
+  inline T &operator[](size_t index);
+  inline const T &operator[](size_t index) const;
 };
 
 } // namespace details

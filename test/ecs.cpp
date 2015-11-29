@@ -701,13 +701,13 @@ SCENARIO("Testing ecs framework, unittests") {
     WHEN("Adding 1 entity, 1 car, then 64 entities, then 1 car in sequence") {
       Entity e1 = entities.create();
       Car c1 = entities.create<Car>();
-      std::vector<Entity> es = entities.create(64);
+      std::vector<Entity> es = entities.create(ECS_CACHE_LINE_SIZE);
       Car c2 = entities.create<Car>();
       THEN("They should be assigned to indexes e0 = [0], car = [64] e64 = [128] ()") {
         REQUIRE(e1.id().index() == 0);
         REQUIRE(c1.id().index() == ECS_CACHE_LINE_SIZE);
         REQUIRE(c2.id().index() == ECS_CACHE_LINE_SIZE + 1);
-        //REQUIRE(es.back().id().index() == ECS_CACHE_LINE_SIZE * 2);
+        REQUIRE(es.back().id().index() == ECS_CACHE_LINE_SIZE * 2);
       }
     }
 
@@ -715,9 +715,6 @@ SCENARIO("Testing ecs framework, unittests") {
       for (int i = 0; i < 1000; i++) {
         entities.create_with<Health>();
         entities.create_with<Mana>();
-        if (i == 800) {
-          (void) i;
-        }
       }
       THEN("They enitities with Health and Mana respectivly should be 1000") {
         REQUIRE(entities.with<Health>().count() == 1000);

@@ -7,13 +7,13 @@ namespace details{
 
 class BaseEntityAlias {
  public:
-  BaseEntityAlias(Entity &entity);
+  inline BaseEntityAlias(Entity &entity);
  protected:
-  BaseEntityAlias();
-  BaseEntityAlias(const BaseEntityAlias &other);
+  inline BaseEntityAlias();
+  inline BaseEntityAlias(const BaseEntityAlias &other);
 
-  EntityManager &entities() { return *manager_; }
-  Entity &entity() { return entity_; }
+  inline EntityManager &entities() { return *manager_; }
+  inline Entity &entity() { return entity_; }
  private:
   union {
     EntityManager *manager_;
@@ -45,29 +45,29 @@ class EntityAlias : public details::BaseEntityAlias {
   using is_component = details::is_type<C, Components...>;
 
  public:
-  EntityAlias(Entity &entity);
+  inline EntityAlias(Entity &entity);
 
-  operator Entity &();
-  operator Entity const &() const;
+  inline operator Entity &();
+  inline operator Entity const &() const;
 
-  bool operator==(const Entity &rhs) const;
-  bool operator!=(const Entity &rhs) const;
+  inline bool operator==(const Entity &rhs) const;
+  inline bool operator!=(const Entity &rhs) const;
 
-  Id &id();
-  Id const &id() const;
+  inline Id &id();
+  inline Id const &id() const;
 
   /// Returns the requested component, or error if it doesn't exist
-  template<typename C> auto get()       -> typename std::enable_if< is_component<C>::value, C &>::type;
-  template<typename C> auto get()       -> typename std::enable_if<!is_component<C>::value, C &>::type;
-  template<typename C> auto get() const -> typename std::enable_if< is_component<C>::value, C const &>::type;
-  template<typename C> auto get() const -> typename std::enable_if<!is_component<C>::value, C const &>::type;
+  template<typename C> inline auto get()       -> typename std::enable_if< is_component<C>::value, C &>::type;
+  template<typename C> inline auto get()       -> typename std::enable_if<!is_component<C>::value, C &>::type;
+  template<typename C> inline auto get() const -> typename std::enable_if< is_component<C>::value, C const &>::type;
+  template<typename C> inline auto get() const -> typename std::enable_if<!is_component<C>::value, C const &>::type;
 
   /// Set the requested component, if old component exist,
   /// a new one is created. Otherwise, the assignment operator
   /// is used.
-  template<typename C, typename ... Args> auto set(Args &&... args) ->
+  template<typename C, typename ... Args> inline auto set(Args &&... args) ->
       typename std::enable_if< is_component<C>::value, C &>::type;
-  template<typename C, typename ... Args> auto set(Args &&... args) ->
+  template<typename C, typename ... Args> inline auto set(Args &&... args) ->
       typename std::enable_if<!is_component<C>::value, C &>::type;
 
   /// Add the requested component, error if component of the same type exist already
@@ -75,8 +75,8 @@ class EntityAlias : public details::BaseEntityAlias {
   inline C &add(Args &&... args);
 
   /// Access this Entity as an EntityAlias.
-  template<typename T> T &as();
-  template<typename T> T const &as() const;
+  template<typename T> inline T &as();
+  template<typename T> inline T const &as() const;
 
   /// Assume that this entity has provided Components
   /// Use for faster component access calls
@@ -87,11 +87,11 @@ class EntityAlias : public details::BaseEntityAlias {
   inline EntityAlias<Components_...> const &assume() const;
 
   /// Removes a component. Error of it doesn't exist. Cannot remove dependent components
-  template<typename C> auto remove() -> typename std::enable_if< is_component<C>::value, void>::type;
-  template<typename C> auto remove() -> typename std::enable_if<!is_component<C>::value, void>::type;
+  template<typename C> inline auto remove() -> typename std::enable_if< is_component<C>::value, void>::type;
+  template<typename C> inline auto remove() -> typename std::enable_if<!is_component<C>::value, void>::type;
 
   /// Removes all components and call destructors
-  void remove_everything();
+  inline void remove_everything();
 
   /// Clears the component mask without destroying components (faster than remove_everything)
   inline void clear_mask();
@@ -99,25 +99,25 @@ class EntityAlias : public details::BaseEntityAlias {
   /// Destroys this entity. Removes all components as well
   inline void destroy();
   /// Return true if entity has all specified components. False otherwise
-  template<typename... Components_> bool has();
-  template<typename... Components_> bool has() const;
+  template<typename... Components_> inline bool has();
+  template<typename... Components_> inline bool has() const;
 
   /// Returns whether an entity is an entity alias or not
-  template<typename T> bool is();
-  template<typename T> bool is() const;
+  template<typename T> inline bool is();
+  template<typename T> inline bool is() const;
 
   /// Returns true if entity has not been destroyed. False otherwise
-  bool is_valid();
-  bool is_valid() const;
+  inline bool is_valid();
+  inline bool is_valid() const;
 
-  template<typename ...Components_> std::tuple<Components_ &...> unpack();
-  template<typename ...Components_> std::tuple<Components_ const &...> unpack() const;
+  template<typename ...Components_> inline std::tuple<Components_ &...> unpack();
+  template<typename ...Components_> inline std::tuple<Components_ const &...> unpack() const;
 
-  std::tuple<Components &...> unpack();
-  std::tuple<Components const &...> unpack() const;
+  inline std::tuple<Components &...> unpack();
+  inline std::tuple<Components const &...> unpack() const;
 
  protected:
-  EntityAlias();
+  inline EntityAlias();
 
  private:
   // Recursion init components with argument
@@ -144,7 +144,7 @@ class EntityAlias : public details::BaseEntityAlias {
   }
 
   template<typename ... Args>
-  void init(Args... args) {
+  inline void init(Args... args) {
     init_components<Components...>(args...);
   }
 
