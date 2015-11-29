@@ -1,5 +1,9 @@
-//
-// Created by Robin Grönberg on 29/11/15.
-//
+#include "SystemManager.h"
 
-#include "System.h"
+namespace ecs{
+
+EntityManager& System::entities(){
+  return *manager_->entities_;
+}
+
+} //namespace ecs

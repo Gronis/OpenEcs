@@ -48,7 +48,7 @@ def parseFile( path, filename ):
                 write( line.rstrip() + "\n" )
 
 out.write( "///\n" )
-out.write( "/// OpenEcs v{0}\n".format( "0.x.x" ) )
+out.write( "/// OpenEcs v{0}\n".format( "0.1.101" ) )
 out.write( "/// Generated: {0}\n".format( datetime.datetime.now() ) )
 out.write( "/// ----------------------------------------------------------\n" )
 out.write( "/// This file has been generated from multiple files. Do not modify\n" )

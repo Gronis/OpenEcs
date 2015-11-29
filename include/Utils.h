@@ -119,6 +119,17 @@ size_t component_index() {
   return index;
 }
 
+inline size_t &system_counter() {
+  static size_t counter = 0;
+  return counter;
+}
+
+template<typename C>
+size_t system_index() {
+  static size_t index = system_counter()++;
+  return index;
+}
+
 //C1 should not be Entity
 template<typename C>
 inline auto component_mask() -> typename

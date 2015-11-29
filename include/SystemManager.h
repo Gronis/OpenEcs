@@ -2,94 +2,56 @@
 // Created by Robin Grönberg on 29/11/15.
 //
 
-#ifndef OPENECS_SYSTEM_H
-#define OPENECS_SYSTEM_H
+#ifndef OPENECS_SYSTEM_MANAGER_H
+#define OPENECS_SYSTEM_MANAGER_H
 
 namespace ecs {
 
+class EntityManager;
+class System;
+
+///---------------------------------------------------------------------
+/// A SystemManager is responsible for managing Systems.
+///---------------------------------------------------------------------
+///
+/// A SystemManager is associated with an EntityManager and any
+/// number of systems. Calling update calls update on every system.
+/// Each system can access the EntityManager and perform operations
+/// on the entities.
+///
+///---------------------------------------------------------------------
 class SystemManager: details::forbid_copies {
- private:
  public:
-  class System {
-   public:
-    virtual ~System() { }
-    virtual void update(float time) = 0;
-   protected:
-    EntityManager &entities() {
-      return *manager_->entities_;
-    }
-   private:
-    friend class SystemManager;
-    SystemManager *manager_;
-  };
 
-  SystemManager(EntityManager &entities) : entities_(&entities) { }
+  inline SystemManager(EntityManager &entities) : entities_(&entities) { }
 
-  ~SystemManager() {
-    for (auto system : systems_) {
-      if (system != nullptr) delete system;
-    }
-    systems_.clear();
-    order_.clear();
-  }
+  inline ~SystemManager();
 
+  /// Adds a System to this SystemManager.
   template<typename S, typename ...Args>
-  S &add(Args &&... args) {
-    ECS_ASSERT_IS_SYSTEM(S);
-    ECS_ASSERT(!exists<S>(), "System already exists");
-    systems_.resize(system_index<S>() + 1);
-    S *system = new S(std::forward<Args>(args) ...);
-    system->manager_ = this;
-    systems_[system_index<S>()] = system;
-    order_.push_back(system_index<S>());
-    return *system;
-  }
+  inline S &add(Args &&... args);
 
+  /// Removes a System from this System Manager
   template<typename S>
-  void remove() {
-    ECS_ASSERT_IS_SYSTEM(S);
-    ECS_ASSERT(exists<S>(), "System does not exist");
-    delete systems_[system_index<S>()];
-    systems_[system_index<S>()] = nullptr;
-    for (auto it = order_.begin(); it != order_.end(); ++it) {
-      if (*it == system_index<S>()) {
-        order_.erase(it);
-      }
-    }
-  }
+  inline void remove();
 
-  void update(float time) {
-    for (auto index : order_) {
-      systems_[index]->update(time);
-    }
-  }
+  /// Update all attached systems. They are updated in the order they are added
+  inline void update(float time);
 
+  /// Check if a system is attached.
   template<typename S>
-  inline bool exists() {
-    ECS_ASSERT_IS_SYSTEM(S);
-    return systems_.size() > system_index<S>() && systems_[system_index<S>()] != nullptr;
-  }
+  inline bool exists();
 
  private:
-  template<typename C>
-  static size_t system_index() {
-    static size_t index = system_counter()++;
-    return index;
-  }
-
-  static size_t &system_counter() {
-    static size_t counter = 0;
-    return counter;
-  }
-
   std::vector<System *> systems_;
   std::vector<size_t> order_;
   EntityManager *entities_;
+
+  friend class System;
 };
 
-using System = SystemManager::System;
 } // namespace ecs
 
-#include "System.inl"
+#include "SystemManager.inl"
 
-#endif //OPENECS_SYSTEM_H
+#endif //OPENECS_SYSTEM_MANAGER_H
