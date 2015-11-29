@@ -57,6 +57,10 @@ class EntityManager: details::forbid_copies {
   /// Create a specified number of new entities.
   inline std::vector <Entity> create(const size_t num_of_entities);
 
+  /// Create a specified number of new entities, and do something with each entity
+  template<typename T>
+  inline void create(const size_t num_of_entities, T lambda);
+
   /// Create, using EntityAlias
   template<typename T, typename ...Args>
   inline auto create(Args &&... args) -> typename std::enable_if<!std::is_constructible<T, Args...>::value, T>::type;
@@ -65,7 +69,8 @@ class EntityManager: details::forbid_copies {
 
   /// Create an entity with components assigned
   template<typename ...Components, typename ...Args>
-  inline EntityAlias<Components...> create_with(Args &&... args);
+  inline auto create_with(Args && ... args ) ->
+      typename std::conditional<(sizeof...(Components) > 0), EntityAlias<Components...>, EntityAlias<Args...>>::type;
 
   /// Create an entity with components assigned, using default values
   template<typename ...Components>

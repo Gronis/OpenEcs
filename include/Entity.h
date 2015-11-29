@@ -79,6 +79,8 @@ class Entity {
   inline details::ComponentMask &mask();
   inline details::ComponentMask const &mask() const;
 
+  inline static details::ComponentMask static_mask();
+
   EntityManager *manager_;
   Id             id_;
 

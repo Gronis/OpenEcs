@@ -40,7 +40,7 @@ template<typename T>
 inline T & Entity::as(){
   ECS_ASSERT_IS_ENTITY(T);
   ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
-  ECS_ASSERT(has(T::mask()), "Entity doesn't have required components for this EntityAlias");
+  ECS_ASSERT(has(T::static_mask()), "Entity doesn't have required components for this EntityAlias");
   return reinterpret_cast<T &>(*this);
 }
 
@@ -48,7 +48,7 @@ template<typename T>
 inline T const & Entity::as() const{
   ECS_ASSERT_IS_ENTITY(T);
   ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
-  ECS_ASSERT(has(T::mask()), "Entity doesn't have required components for this EntityAlias");
+  ECS_ASSERT(has(T::static_mask()), "Entity doesn't have required components for this EntityAlias");
   return reinterpret_cast<T const &>(*this);
 }
 
@@ -95,14 +95,14 @@ template<typename T>
 bool Entity::is() {
   ECS_ASSERT_IS_ENTITY(T);
   ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
-  return has(T::mask());
+  return has(T::static_mask());
 }
 
 template<typename T>
 bool Entity::is() const {
   ECS_ASSERT_IS_ENTITY(T);
   ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
-  return has(T::mask());
+  return has(T::static_mask());
 }
 
 bool Entity::is_valid() {
@@ -144,6 +144,10 @@ inline bool operator==(const Entity &lhs, const Entity &rhs) {
 
 inline bool operator!=(const Entity &lhs, const Entity &rhs) {
   return lhs.id() != rhs.id();
+}
+
+details::ComponentMask Entity::static_mask(){
+  return details::ComponentMask(0);
 }
 
 } // namespace ecs

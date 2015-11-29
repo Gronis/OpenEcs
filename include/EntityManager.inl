@@ -70,13 +70,25 @@ std::vector<Entity> EntityManager::create(const size_t num_of_entities)  {
   return create_with_mask(details::ComponentMask(0), num_of_entities);
 }
 
+template<typename T>
+inline void EntityManager::create(const size_t num_of_entities, T lambda){
+  ECS_ASSERT_IS_CALLABLE(T);
+  using EntityAlias_ = typename details::function_traits<T>::template arg_remove_ref<0>;
+  ECS_ASSERT_IS_ENTITY(EntityAlias_);
+  for(Entity& entity : create_with_mask(EntityAlias_::static_mask(), num_of_entities)){
+    //We cannot use as<EntityAlias> since we dont have attached any components
+    lambda(*reinterpret_cast<EntityAlias_*>(&entity));
+    ECS_ASSERT(entity.has(EntityAlias_::static_mask()), "Entity are missing certain components.");
+  }
+}
+
 /// If EntityAlias is constructable with Args...
 template<typename T, typename ...Args>
 auto EntityManager::create(Args && ... args) ->
 typename std::enable_if<std::is_constructible<T, Args...>::value, T>::type {
   ECS_ASSERT_IS_ENTITY(T);
   ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
-  auto mask = T::mask();
+  auto mask = T::static_mask();
   Entity entity = create_with_mask(mask);
   T *entity_alias = new(&entity) T(std::forward<Args>(args)...);
   ECS_ASSERT(entity.has(mask),
@@ -92,7 +104,7 @@ typename std::enable_if<!std::is_constructible<T, Args...>::value, T>::type {
   ECS_ASSERT_IS_ENTITY(T);
   ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
   typedef typename T::Type Type;
-  auto mask = T::mask();
+  auto mask = T::static_mask();
   Entity entity = create_with_mask(mask);
   Type *entity_alias = new(&entity) Type();
   entity_alias->init(std::forward<Args>(args)...);
@@ -102,9 +114,10 @@ typename std::enable_if<!std::is_constructible<T, Args...>::value, T>::type {
 }
 
 template<typename ...Components, typename ...Args>
-EntityAlias<Components...> EntityManager::create_with(Args && ... args ) {
-  using Type =  EntityAlias<Components...>;
-  Entity entity = create_with_mask(details::component_mask<Components...>());
+auto EntityManager::create_with(Args && ... args ) ->
+typename std::conditional<(sizeof...(Components) > 0), EntityAlias<Components...>, EntityAlias<Args...>>::type{
+  using Type = typename std::conditional<(sizeof...(Components) > 0), EntityAlias<Components...>, EntityAlias<Args...>>::type;
+  Entity entity = create_with_mask(Type::static_mask());
   Type *entity_alias = new(&entity) Type();
   entity_alias->init(std::forward<Args>(args)...);
   return *entity_alias;
@@ -189,7 +202,7 @@ void EntityManager::with(T lambda)  {
 template<typename T>
 View<T> EntityManager::fetch_every()  {
   ECS_ASSERT_IS_ENTITY(T);
-  return View<T>(this, T::mask());
+  return View<T>(this, T::static_mask());
 }
 
 

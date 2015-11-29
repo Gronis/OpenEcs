@@ -39,6 +39,11 @@ Entity entity = entities.create();
 
 //Create 100 entities
 vector<Entity> new_entities = entities.create(100);
+
+//Create 100 entities and do something with them
+entities.create(100, [] (Entity entity){
+   //Do something with the added entity 
+});
 ```
 
 ###Adding Components to entities
@@ -82,6 +87,21 @@ NOTE: This is provided by using uniform initialization, which means that the arg
 ```cpp
 entity.add<Health>(10.0f);// <- does not work, since float is not int
 ```
+
+There is also a way to add components at the same time when creating an Entity by using the "create_with" method:
+
+```cpp
+entities.create_with<Health, Mana>(10, 5); //Adds health = 10 and mana = 5
+//OR
+entities.create_with(Health(10), Mana(5)); //Same as above.
+//This is the same as doing this:
+Entity entity = entity.create();
+entity.add<Health>(10);
+entity.add<Mana>(5);
+```
+
+Which one to use is up to you, though adding the components with one line gives information to the EntityManager
+what components are comming, and the location of the entity in memory can be probably be better. 
 
 ### Accessing Components from entities
 Accessing components is just as easy as adding them

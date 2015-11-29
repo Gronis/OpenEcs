@@ -7,7 +7,7 @@ namespace details{
 
 class BaseEntityAlias {
  public:
-  inline BaseEntityAlias(Entity &entity);
+  inline BaseEntityAlias(const Entity &entity);
  protected:
   inline BaseEntityAlias();
   inline BaseEntityAlias(const BaseEntityAlias &other);
@@ -45,10 +45,15 @@ class EntityAlias : public details::BaseEntityAlias {
   using is_component = details::is_type<C, Components...>;
 
  public:
-  inline EntityAlias(Entity &entity);
+  inline EntityAlias(const Entity &entity);
 
+  /// Cast to Entity or EntityAlias
   inline operator Entity &();
   inline operator Entity const &() const;
+  template<typename T>
+  inline operator const T &() const;
+  template<typename T>
+  inline operator T &();
 
   inline bool operator==(const Entity &rhs) const;
   inline bool operator!=(const Entity &rhs) const;
@@ -148,7 +153,7 @@ class EntityAlias : public details::BaseEntityAlias {
     init_components<Components...>(args...);
   }
 
-  static details::ComponentMask mask();
+  inline static details::ComponentMask static_mask();
 
 
   friend class EntityManager;

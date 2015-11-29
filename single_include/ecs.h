@@ -1,6 +1,6 @@
 ///
 /// OpenEcs v0.1.101
-/// Generated: 2015-11-29 20:28:15.321249
+/// Generated: 2015-11-29 23:41:39.542367
 /// ----------------------------------------------------------
 /// This file has been generated from multiple files. Do not modify
 /// ----------------------------------------------------------
@@ -529,6 +529,10 @@ class EntityManager: details::forbid_copies {
   /// Create a specified number of new entities.
   inline std::vector <Entity> create(const size_t num_of_entities);
 
+  /// Create a specified number of new entities, and do something with each entity
+  template<typename T>
+  inline void create(const size_t num_of_entities, T lambda);
+
   /// Create, using EntityAlias
   template<typename T, typename ...Args>
   inline auto create(Args &&... args) -> typename std::enable_if<!std::is_constructible<T, Args...>::value, T>::type;
@@ -537,7 +541,8 @@ class EntityManager: details::forbid_copies {
 
   /// Create an entity with components assigned
   template<typename ...Components, typename ...Args>
-  inline EntityAlias<Components...> create_with(Args &&... args);
+  inline auto create_with(Args && ... args ) ->
+      typename std::conditional<(sizeof...(Components) > 0), EntityAlias<Components...>, EntityAlias<Args...>>::type;
 
   /// Create an entity with components assigned, using default values
   template<typename ...Components>
@@ -874,6 +879,8 @@ class Entity {
   inline details::ComponentMask &mask();
   inline details::ComponentMask const &mask() const;
 
+  inline static details::ComponentMask static_mask();
+
   EntityManager *manager_;
   Id             id_;
 
@@ -896,7 +903,7 @@ namespace details{
 
 class BaseEntityAlias {
  public:
-  inline BaseEntityAlias(Entity &entity);
+  inline BaseEntityAlias(const Entity &entity);
  protected:
   inline BaseEntityAlias();
   inline BaseEntityAlias(const BaseEntityAlias &other);
@@ -933,10 +940,15 @@ class EntityAlias : public details::BaseEntityAlias {
   using is_component = details::is_type<C, Components...>;
 
  public:
-  inline EntityAlias(Entity &entity);
+  inline EntityAlias(const Entity &entity);
 
+  /// Cast to Entity or EntityAlias
   inline operator Entity &();
   inline operator Entity const &() const;
+  template<typename T>
+  inline operator const T &() const;
+  template<typename T>
+  inline operator T &();
 
   inline bool operator==(const Entity &rhs) const;
   inline bool operator!=(const Entity &rhs) const;
@@ -1036,7 +1048,7 @@ class EntityAlias : public details::BaseEntityAlias {
     init_components<Components...>(args...);
   }
 
-  static details::ComponentMask mask();
+  inline static details::ComponentMask static_mask();
 
   friend class EntityManager;
   friend class Entity;
@@ -1050,14 +1062,16 @@ namespace ecs{
 
 namespace details{
 
-BaseEntityAlias::BaseEntityAlias(Entity &entity) : entity_(entity) { }
+BaseEntityAlias::BaseEntityAlias(const Entity &entity) : entity_(entity) {  }
 BaseEntityAlias::BaseEntityAlias() { }
 BaseEntityAlias::BaseEntityAlias(const BaseEntityAlias &other) : entity_(other.entity_) { }
 
 } // namespace details
 
 template<typename ...Cs>
-EntityAlias<Cs...>::EntityAlias(Entity &entity) : details::BaseEntityAlias(entity) { }
+EntityAlias<Cs...>::EntityAlias(const Entity &entity) : details::BaseEntityAlias(entity) {
+  ECS_ASSERT(entity.has(static_mask()), "Cannot create EntityAlias from Entity when missing required components");
+}
 
 template<typename ...Cs>
 EntityAlias<Cs...>::operator Entity &() {
@@ -1068,6 +1082,15 @@ template<typename ...Cs>
 EntityAlias<Cs...>::operator Entity const &() const {
   return entity_;
 }
+
+template<typename ...Cs> template<typename T>
+EntityAlias<Cs...>::operator const T &() const{
+  return as<T>();
+};
+template<typename ...Cs> template<typename T>
+EntityAlias<Cs...>::operator T &(){
+  return as<T>();
+};
 
 template<typename ...Cs>
 Id &EntityAlias<Cs...>::id() {
@@ -1222,7 +1245,7 @@ EntityAlias<Cs...>::EntityAlias() {
 }
 
 template<typename ...Cs>
-details::ComponentMask EntityAlias<Cs...>::mask(){
+details::ComponentMask EntityAlias<Cs...>::static_mask(){
   return details::component_mask<Cs...>();
 }
 
@@ -1278,7 +1301,7 @@ template<typename T>
 inline T & Entity::as(){
   ECS_ASSERT_IS_ENTITY(T);
   ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
-  ECS_ASSERT(has(T::mask()), "Entity doesn't have required components for this EntityAlias");
+  ECS_ASSERT(has(T::static_mask()), "Entity doesn't have required components for this EntityAlias");
   return reinterpret_cast<T &>(*this);
 }
 
@@ -1286,7 +1309,7 @@ template<typename T>
 inline T const & Entity::as() const{
   ECS_ASSERT_IS_ENTITY(T);
   ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
-  ECS_ASSERT(has(T::mask()), "Entity doesn't have required components for this EntityAlias");
+  ECS_ASSERT(has(T::static_mask()), "Entity doesn't have required components for this EntityAlias");
   return reinterpret_cast<T const &>(*this);
 }
 
@@ -1333,14 +1356,14 @@ template<typename T>
 bool Entity::is() {
   ECS_ASSERT_IS_ENTITY(T);
   ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
-  return has(T::mask());
+  return has(T::static_mask());
 }
 
 template<typename T>
 bool Entity::is() const {
   ECS_ASSERT_IS_ENTITY(T);
   ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
-  return has(T::mask());
+  return has(T::static_mask());
 }
 
 bool Entity::is_valid() {
@@ -1382,6 +1405,10 @@ inline bool operator==(const Entity &lhs, const Entity &rhs) {
 
 inline bool operator!=(const Entity &lhs, const Entity &rhs) {
   return lhs.id() != rhs.id();
+}
+
+details::ComponentMask Entity::static_mask(){
+  return details::ComponentMask(0);
 }
 
 } // namespace ecs
@@ -1455,13 +1482,25 @@ std::vector<Entity> EntityManager::create(const size_t num_of_entities)  {
   return create_with_mask(details::ComponentMask(0), num_of_entities);
 }
 
+template<typename T>
+inline void EntityManager::create(const size_t num_of_entities, T lambda){
+  ECS_ASSERT_IS_CALLABLE(T);
+  using EntityAlias_ = typename details::function_traits<T>::template arg_remove_ref<0>;
+  ECS_ASSERT_IS_ENTITY(EntityAlias_);
+  for(Entity& entity : create_with_mask(EntityAlias_::static_mask(), num_of_entities)){
+    //We cannot use as<EntityAlias> since we dont have attached any components
+    lambda(*reinterpret_cast<EntityAlias_*>(&entity));
+    ECS_ASSERT(entity.has(EntityAlias_::static_mask()), "Entity are missing certain components.");
+  }
+}
+
 /// If EntityAlias is constructable with Args...
 template<typename T, typename ...Args>
 auto EntityManager::create(Args && ... args) ->
 typename std::enable_if<std::is_constructible<T, Args...>::value, T>::type {
   ECS_ASSERT_IS_ENTITY(T);
   ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
-  auto mask = T::mask();
+  auto mask = T::static_mask();
   Entity entity = create_with_mask(mask);
   T *entity_alias = new(&entity) T(std::forward<Args>(args)...);
   ECS_ASSERT(entity.has(mask),
@@ -1477,7 +1516,7 @@ typename std::enable_if<!std::is_constructible<T, Args...>::value, T>::type {
   ECS_ASSERT_IS_ENTITY(T);
   ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
   typedef typename T::Type Type;
-  auto mask = T::mask();
+  auto mask = T::static_mask();
   Entity entity = create_with_mask(mask);
   Type *entity_alias = new(&entity) Type();
   entity_alias->init(std::forward<Args>(args)...);
@@ -1487,9 +1526,10 @@ typename std::enable_if<!std::is_constructible<T, Args...>::value, T>::type {
 }
 
 template<typename ...Components, typename ...Args>
-EntityAlias<Components...> EntityManager::create_with(Args && ... args ) {
-  using Type =  EntityAlias<Components...>;
-  Entity entity = create_with_mask(details::component_mask<Components...>());
+auto EntityManager::create_with(Args && ... args ) ->
+typename std::conditional<(sizeof...(Components) > 0), EntityAlias<Components...>, EntityAlias<Args...>>::type{
+  using Type = typename std::conditional<(sizeof...(Components) > 0), EntityAlias<Components...>, EntityAlias<Args...>>::type;
+  Entity entity = create_with_mask(Type::static_mask());
   Type *entity_alias = new(&entity) Type();
   entity_alias->init(std::forward<Args>(args)...);
   return *entity_alias;
@@ -1573,7 +1613,7 @@ void EntityManager::with(T lambda)  {
 template<typename T>
 View<T> EntityManager::fetch_every()  {
   ECS_ASSERT_IS_ENTITY(T);
-  return View<T>(this, T::mask());
+  return View<T>(this, T::static_mask());
 }
 
 template<typename T>

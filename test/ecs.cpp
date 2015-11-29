@@ -288,6 +288,24 @@ SCENARIO("Testing ecs framework, unittests") {
       }
     }
 
+    WHEN("Adding 100 entities with health using lambda"){
+      entities.create(100, [] (Entity entity){
+        entity.add<Health>(10);
+      });
+      THEN("There should be 100 entities with health"){
+        REQUIRE(entities.with<Health>().count() == 100);
+      }
+    }
+
+    WHEN("Adding 100 cars using lambda"){
+      entities.create(100, [] (Car car){
+        car.add<Wheels>();
+      });
+      THEN("There should be 100 cars"){
+        REQUIRE(entities.fetch_every<Car>().count());
+      }
+    }
+
     // Testing EntityManager::View functions
     GIVEN("4 entities with no components attached") {
       Entity e1 = entities.create();
@@ -652,12 +670,18 @@ SCENARIO("Testing ecs framework, unittests") {
     }
 
     WHEN("Creating 1 entity with Health and mana") {
-      Entity entity = entities.create_with<Health, Mana>(10, 1);
+      Entity e1 = entities.create_with<Health, Mana>(10, 1);
+      Entity e2 = entities.create_with(Health(8), Mana(5));
       THEN("They should have health and mana") {
-        REQUIRE(entity.has<Health>());
-        REQUIRE(entity.has<Mana>());
-        REQUIRE(entity.get<Health>() == 10);
-        REQUIRE(entity.get<Mana>() == 1);
+        REQUIRE(e1.has<Health>());
+        REQUIRE(e1.has<Mana>());
+        REQUIRE(e1.get<Health>() == 10);
+        REQUIRE(e1.get<Mana>() == 1);
+
+        REQUIRE(e2.has<Health>());
+        REQUIRE(e2.has<Mana>());
+        REQUIRE(e2.get<Health>() == 8);
+        REQUIRE(e2.get<Mana>() == 5);
       }
     }
 
@@ -685,6 +709,14 @@ SCENARIO("Testing ecs framework, unittests") {
         REQUIRE(e4.id().index() == ECS_CACHE_LINE_SIZE * 2);
         REQUIRE(e5.id().index() == 1 + ECS_CACHE_LINE_SIZE);
       }
+    }
+
+    WHEN("Creating car implicitly by using create_with<Wheels>()"){
+      Car c = entities.create_with<Wheels>();
+    }
+
+    WHEN("Creating car implicitly by using create_with<Health>(), should not work"){
+      REQUIRE_THROWS({ Car c = entities.create_with<Health>(); });
     }
 
     WHEN("Adding 1 entity, 1 car, then 1 entity in sequence") {

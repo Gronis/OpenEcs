@@ -4,14 +4,16 @@ namespace ecs{
 
 namespace details{
 
-BaseEntityAlias::BaseEntityAlias(Entity &entity) : entity_(entity) { }
+BaseEntityAlias::BaseEntityAlias(const Entity &entity) : entity_(entity) {  }
 BaseEntityAlias::BaseEntityAlias() { }
 BaseEntityAlias::BaseEntityAlias(const BaseEntityAlias &other) : entity_(other.entity_) { }
 
 } // namespace details
 
 template<typename ...Cs>
-EntityAlias<Cs...>::EntityAlias(Entity &entity) : details::BaseEntityAlias(entity) { }
+EntityAlias<Cs...>::EntityAlias(const Entity &entity) : details::BaseEntityAlias(entity) {
+  ECS_ASSERT(entity.has(static_mask()), "Cannot create EntityAlias from Entity when missing required components");
+}
 
 
 template<typename ...Cs>
@@ -23,6 +25,15 @@ template<typename ...Cs>
 EntityAlias<Cs...>::operator Entity const &() const {
   return entity_;
 }
+
+template<typename ...Cs> template<typename T>
+EntityAlias<Cs...>::operator const T &() const{
+  return as<T>();
+};
+template<typename ...Cs> template<typename T>
+EntityAlias<Cs...>::operator T &(){
+  return as<T>();
+};
 
 template<typename ...Cs>
 Id &EntityAlias<Cs...>::id() {
@@ -178,7 +189,7 @@ EntityAlias<Cs...>::EntityAlias() {
 }
 
 template<typename ...Cs>
-details::ComponentMask EntityAlias<Cs...>::mask(){
+details::ComponentMask EntityAlias<Cs...>::static_mask(){
   return details::component_mask<Cs...>();
 }
 
