@@ -17,7 +17,6 @@ namespace ecs{
 class Entity {
  public:
   inline Entity(EntityManager *manager, Id id);
-  inline Entity(const Entity &other);
   inline Entity &operator=(const Entity &rhs);
 
   inline Id &id() { return id_; }

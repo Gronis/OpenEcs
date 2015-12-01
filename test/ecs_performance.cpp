@@ -201,7 +201,7 @@ SCENARIO("TestEntityIteration") {
 
 SCENARIO("TestEntityIterationForContinousMemory hard code") {
   const int count = 10000000;
-  Door* doors = new Door[count];
+  Wheels* wheels = new Wheels[count];
 
   WHEN("Iterating over entities with doors (hard code)") {
     std::cout << "Iterating over " << count << " using with Doors continous in memory (hard code)" << std::endl;
@@ -212,7 +212,7 @@ SCENARIO("TestEntityIterationForContinousMemory hard code") {
         if(foo->always_false){
           foo->bar();
         }
-        (void)doors[i].value;
+        (void)wheels[i].value;
       }
     }
   }
@@ -220,18 +220,18 @@ SCENARIO("TestEntityIterationForContinousMemory hard code") {
 
 SCENARIO("TestEntityIterationForSplittedMemory hard code") {
   const int count = 10000000;
-  Door* doors = new Door[count * 100];
+  Wheels* wheels = new Wheels[count * 20];
 
   WHEN("Iterating over entities with doors (hard code)") {
     std::cout << "Iterating over " << count << " using with Doors split in memory (hard code)" << std::endl;
     BaseFoo *foo = new Foo();
     {
       Timer t;
-      for (int i = 0; i < count * 100; i+=100) {
+      for (int i = 0; i < count * 20; i+=100) {
         if(foo->always_false){
           foo->bar();
         }
-        (void)doors[i].value;
+        (void)wheels[i].value;
       }
     }
   }

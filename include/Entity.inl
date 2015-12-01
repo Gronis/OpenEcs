@@ -3,8 +3,6 @@
 
 namespace ecs{
 
-Entity::Entity(const Entity &other) : Entity(other.manager_, other.id_) { }
-
 Entity::Entity(EntityManager *manager, Id id) :
     manager_(manager),
     id_(id)

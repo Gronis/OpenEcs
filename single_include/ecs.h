@@ -1,6 +1,6 @@
 ///
 /// OpenEcs v0.1.101
-/// Generated: 2015-11-29 23:49:18.846966
+/// Generated: 2015-12-01 23:41:02.881950
 /// ----------------------------------------------------------
 /// This file has been generated from multiple files. Do not modify
 /// ----------------------------------------------------------
@@ -817,7 +817,6 @@ namespace ecs{
 class Entity {
  public:
   inline Entity(EntityManager *manager, Id id);
-  inline Entity(const Entity &other);
   inline Entity &operator=(const Entity &rhs);
 
   inline Id &id() { return id_; }
@@ -1069,9 +1068,7 @@ BaseEntityAlias::BaseEntityAlias(const BaseEntityAlias &other) : entity_(other.e
 } // namespace details
 
 template<typename ...Cs>
-EntityAlias<Cs...>::EntityAlias(const Entity &entity) : details::BaseEntityAlias(entity) {
-  ECS_ASSERT(entity.has(static_mask()), "Cannot create EntityAlias from Entity when missing required components");
-}
+EntityAlias<Cs...>::EntityAlias(const Entity &entity) : details::BaseEntityAlias(entity) {}
 
 template<typename ...Cs>
 EntityAlias<Cs...>::operator Entity &() {
@@ -1264,8 +1261,6 @@ inline bool EntityAlias<Cs...>::operator!=(const Entity &rhs) const {
 #endif //ECS_ENTITYALIAS_H
 
 namespace ecs{
-
-Entity::Entity(const Entity &other) : Entity(other.manager_, other.id_) { }
 
 Entity::Entity(EntityManager *manager, Id id) :
     manager_(manager),
