@@ -162,26 +162,6 @@ bool EntityAlias<Cs...>::is_valid() const {
   return entity_.is_valid();
 }
 
-template<typename ...Cs> template<typename... Components>
-std::tuple<Components &...> EntityAlias<Cs...>::unpack(){
-  return entity_.unpack<Components...>();
-}
-
-template<typename ...Cs> template<typename... Components>
-std::tuple<Components const &...> EntityAlias<Cs...>::unpack() const{
-  return entity_.unpack<Components...>();
-}
-
-template<typename ...Cs>
-std::tuple<Cs &...> EntityAlias<Cs...>::unpack(){
-  return entity_.unpack<Cs...>();
-}
-
-template<typename ...Cs>
-std::tuple<Cs const &...> EntityAlias<Cs...>::unpack() const{
-  return entity_.unpack<Cs...>();
-}
-
 template<typename ...Cs>
 EntityAlias<Cs...>::EntityAlias() {
 

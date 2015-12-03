@@ -67,9 +67,6 @@ class Entity {
   bool inline is_valid();
   bool inline is_valid() const;
 
-  template<typename ...Components> inline std::tuple<Components &...> unpack();
-  template<typename ...Components> inline std::tuple<Components const &...> unpack() const;
-
  private:
   /// Return true if entity has all specified compoents. False otherwise
   inline bool has(details::ComponentMask &check_mask);

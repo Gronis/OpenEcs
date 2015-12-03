@@ -111,16 +111,6 @@ bool Entity::is_valid() const {
   return manager_->is_valid(*this);
 }
 
-template<typename ...Components>
-std::tuple<Components &...>  Entity::unpack() {
-  return std::forward_as_tuple(get<Components>()...);
-}
-
-template<typename ...Components>
-std::tuple<Components const &...> Entity::unpack() const{
-  return std::forward_as_tuple(get<Components>()...);
-}
-
 bool Entity::has(details::ComponentMask &check_mask)  {
   return manager_->has_component(*this, check_mask);
 }

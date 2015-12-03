@@ -22,6 +22,12 @@ OpenECS focuses on clean and understandable code that compiles to something with
 Just [Download](https://github.com/Gronis/OpenEcs/raw/master/single_include/ecs.h) the header and include it into your project.
 Make sure to enable c++11 when compiling. (-std=c++11 or -std=c++0x)
 
+##Support
+OpenEcs support all mainstream compilers:
+* gcc (tested with v4.8)
+* clang
+* MSVC (Visual Studio 2015)
+
 ##Standard Feature's:
 The first thing you need is somewhere to store the entities. This is called the EntityManager and is created like this:
 ```cpp

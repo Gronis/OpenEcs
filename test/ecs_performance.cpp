@@ -227,7 +227,7 @@ SCENARIO("TestEntityIterationForSplittedMemory hard code") {
     BaseFoo *foo = new Foo();
     {
       Timer t;
-      for (int i = 0; i < count * 20; i+=100) {
+      for (int i = 0; i < count * 20; i+=20) {
         if(foo->always_false){
           foo->bar();
         }

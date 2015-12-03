@@ -600,20 +600,6 @@ SCENARIO("Testing ecs framework, unittests") {
           }
           REQUIRE(count == 1);
         }
-        THEN("Unpacking Wheels, Health and Mana components. Accessing components should work") {
-          auto tuple = entity.unpack<Wheels, Health, Mana>();
-          auto &health = std::get<1>(tuple);
-          auto &mana = std::get<2>(tuple);
-          REQUIRE(health == 1);
-          REQUIRE(mana == 1);
-          AND_WHEN("Adding 1 to Mana") {
-            mana.value += 1;
-            THEN("Mana should be 2") {
-              mana = entity.get<Mana>();
-              REQUIRE(mana.value == 2);
-            }
-          }
-        }
         AND_WHEN("A change is made to some of the components as ref") {
           entities.with([](Mana &mana) {
             mana = 10;

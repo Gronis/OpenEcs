@@ -27,7 +27,7 @@
             "Provide a function or lambda expression");                                     \
 
 #define ECS_ASSERT_IS_ENTITY(T)                                                             \
-            static_assert(std::is_base_of<details::BaseEntityAlias, T>::value ||            \
+            static_assert(std::is_base_of<details::BaseEntity, T>::value ||            \
                       std::is_same<Entity, T>::value ,                                      \
             #T " does not inherit EntityAlias.");
 

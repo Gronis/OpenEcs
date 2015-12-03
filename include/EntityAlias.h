@@ -5,12 +5,12 @@ namespace ecs{
 
 namespace details{
 
-class BaseEntityAlias {
+class BaseEntity {
  public:
-  inline BaseEntityAlias(const Entity &entity);
+  inline BaseEntity(const Entity &entity);
  protected:
-  inline BaseEntityAlias();
-  inline BaseEntityAlias(const BaseEntityAlias &other);
+  inline BaseEntity();
+  inline BaseEntity(const BaseEntity &other);
 
   inline EntityManager &entities() { return *manager_; }
   inline Entity &entity() { return entity_; }
@@ -21,7 +21,7 @@ class BaseEntityAlias {
   };
   template<typename ... Components>
   friend class ecs::EntityAlias;
-}; //BaseEntityAlias
+}; //BaseEntity
 
 } // namespace details
 
@@ -36,7 +36,7 @@ class BaseEntityAlias {
 ///
 ///---------------------------------------------------------------------
 template<typename ...Components>
-class EntityAlias : public details::BaseEntityAlias {
+class EntityAlias : public details::BaseEntity {
  private:
   /// Underlying EntityAlias. Used for creating Entity alias without
   /// a provided constructor
@@ -115,12 +115,6 @@ class EntityAlias : public details::BaseEntityAlias {
   inline bool is_valid();
   inline bool is_valid() const;
 
-  template<typename ...Components_> inline std::tuple<Components_ &...> unpack();
-  template<typename ...Components_> inline std::tuple<Components_ const &...> unpack() const;
-
-  inline std::tuple<Components &...> unpack();
-  inline std::tuple<Components const &...> unpack() const;
-
  protected:
   inline EntityAlias();
 
@@ -154,7 +148,6 @@ class EntityAlias : public details::BaseEntityAlias {
   }
 
   inline static details::ComponentMask static_mask();
-
 
   friend class EntityManager;
   friend class Entity;
