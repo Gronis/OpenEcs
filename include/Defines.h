@@ -32,7 +32,7 @@
             #T " does not inherit EntityAlias.");
 
 #define ECS_ASSERT_ENTITY_CORRECT_SIZE(T)                                                   \
-            static_assert(sizeof(details::BaseEntityAlias) == sizeof(T),                    \
+            static_assert(sizeof(details::BaseEntity) == sizeof(T),                    \
             #T " should not include new variables, add them as Components instead.");       \
 
 #define ECS_ASSERT_VALID_ENTITY(E)                                                          \

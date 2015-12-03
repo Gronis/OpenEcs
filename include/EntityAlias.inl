@@ -4,14 +4,14 @@ namespace ecs{
 
 namespace details{
 
-BaseEntityAlias::BaseEntityAlias(const Entity &entity) : entity_(entity) {  }
-BaseEntityAlias::BaseEntityAlias() { }
-BaseEntityAlias::BaseEntityAlias(const BaseEntityAlias &other) : entity_(other.entity_) { }
+BaseEntity::BaseEntity(const Entity &entity) : entity_(entity) {  }
+BaseEntity::BaseEntity() { }
+BaseEntity::BaseEntity(const BaseEntity &other) : entity_(other.entity_) { }
 
 } // namespace details
 
 template<typename ...Cs>
-EntityAlias<Cs...>::EntityAlias(const Entity &entity) : details::BaseEntityAlias(entity) {}
+EntityAlias<Cs...>::EntityAlias(const Entity &entity) : details::BaseEntity(entity) {}
 
 
 template<typename ...Cs>
