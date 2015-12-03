@@ -31,6 +31,7 @@ void SystemManager::remove() {
   for (auto it = order_.begin(); it != order_.end(); ++it) {
     if (*it == details::system_index<S>()) {
       order_.erase(it);
+	  break;
     }
   }
 }

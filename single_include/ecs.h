@@ -1,6 +1,6 @@
 ///
 /// OpenEcs v0.1.101
-/// Generated: 2015-12-01 23:41:02.881950
+/// Generated: 2015-12-03 20:19:32.602709
 /// ----------------------------------------------------------
 /// This file has been generated from multiple files. Do not modify
 /// ----------------------------------------------------------
@@ -66,12 +66,12 @@
             "Provide a function or lambda expression");                                     \
 
 #define ECS_ASSERT_IS_ENTITY(T)                                                             \
-            static_assert(std::is_base_of<details::BaseEntityAlias, T>::value ||            \
+            static_assert(std::is_base_of<details::BaseEntity, T>::value ||            \
                       std::is_same<Entity, T>::value ,                                      \
             #T " does not inherit EntityAlias.");
 
 #define ECS_ASSERT_ENTITY_CORRECT_SIZE(T)                                                   \
-            static_assert(sizeof(details::BaseEntityAlias) == sizeof(T),                    \
+            static_assert(sizeof(details::BaseEntity) == sizeof(T),                    \
             #T " should not include new variables, add them as Components instead.");       \
 
 #define ECS_ASSERT_VALID_ENTITY(E)                                                          \
@@ -867,9 +867,6 @@ class Entity {
   bool inline is_valid();
   bool inline is_valid() const;
 
-  template<typename ...Components> inline std::tuple<Components &...> unpack();
-  template<typename ...Components> inline std::tuple<Components const &...> unpack() const;
-
  private:
   /// Return true if entity has all specified compoents. False otherwise
   inline bool has(details::ComponentMask &check_mask);
@@ -900,12 +897,12 @@ namespace ecs{
 
 namespace details{
 
-class BaseEntityAlias {
+class BaseEntity {
  public:
-  inline BaseEntityAlias(const Entity &entity);
+  inline BaseEntity(const Entity &entity);
  protected:
-  inline BaseEntityAlias();
-  inline BaseEntityAlias(const BaseEntityAlias &other);
+  inline BaseEntity();
+  inline BaseEntity(const BaseEntity &other);
 
   inline EntityManager &entities() { return *manager_; }
   inline Entity &entity() { return entity_; }
@@ -916,7 +913,7 @@ class BaseEntityAlias {
   };
   template<typename ... Components>
   friend class ecs::EntityAlias;
-}; //BaseEntityAlias
+}; //BaseEntity
 
 } // namespace details
 
@@ -930,7 +927,7 @@ class BaseEntityAlias {
 ///
 ///---------------------------------------------------------------------
 template<typename ...Components>
-class EntityAlias : public details::BaseEntityAlias {
+class EntityAlias : public details::BaseEntity {
  private:
   /// Underlying EntityAlias. Used for creating Entity alias without
   /// a provided constructor
@@ -1009,12 +1006,6 @@ class EntityAlias : public details::BaseEntityAlias {
   inline bool is_valid();
   inline bool is_valid() const;
 
-  template<typename ...Components_> inline std::tuple<Components_ &...> unpack();
-  template<typename ...Components_> inline std::tuple<Components_ const &...> unpack() const;
-
-  inline std::tuple<Components &...> unpack();
-  inline std::tuple<Components const &...> unpack() const;
-
  protected:
   inline EntityAlias();
 
@@ -1061,14 +1052,14 @@ namespace ecs{
 
 namespace details{
 
-BaseEntityAlias::BaseEntityAlias(const Entity &entity) : entity_(entity) {  }
-BaseEntityAlias::BaseEntityAlias() { }
-BaseEntityAlias::BaseEntityAlias(const BaseEntityAlias &other) : entity_(other.entity_) { }
+BaseEntity::BaseEntity(const Entity &entity) : entity_(entity) {  }
+BaseEntity::BaseEntity() { }
+BaseEntity::BaseEntity(const BaseEntity &other) : entity_(other.entity_) { }
 
 } // namespace details
 
 template<typename ...Cs>
-EntityAlias<Cs...>::EntityAlias(const Entity &entity) : details::BaseEntityAlias(entity) {}
+EntityAlias<Cs...>::EntityAlias(const Entity &entity) : details::BaseEntity(entity) {}
 
 template<typename ...Cs>
 EntityAlias<Cs...>::operator Entity &() {
@@ -1217,26 +1208,6 @@ bool EntityAlias<Cs...>::is_valid() const {
   return entity_.is_valid();
 }
 
-template<typename ...Cs> template<typename... Components>
-std::tuple<Components &...> EntityAlias<Cs...>::unpack(){
-  return entity_.unpack<Components...>();
-}
-
-template<typename ...Cs> template<typename... Components>
-std::tuple<Components const &...> EntityAlias<Cs...>::unpack() const{
-  return entity_.unpack<Components...>();
-}
-
-template<typename ...Cs>
-std::tuple<Cs &...> EntityAlias<Cs...>::unpack(){
-  return entity_.unpack<Cs...>();
-}
-
-template<typename ...Cs>
-std::tuple<Cs const &...> EntityAlias<Cs...>::unpack() const{
-  return entity_.unpack<Cs...>();
-}
-
 template<typename ...Cs>
 EntityAlias<Cs...>::EntityAlias() {
 
@@ -1368,16 +1339,6 @@ bool Entity::is_valid() {
 
 bool Entity::is_valid() const {
   return manager_->is_valid(*this);
-}
-
-template<typename ...Components>
-std::tuple<Components &...>  Entity::unpack() {
-  return std::forward_as_tuple(get<Components>()...);
-}
-
-template<typename ...Components>
-std::tuple<Components const &...> Entity::unpack() const{
-  return std::forward_as_tuple(get<Components>()...);
 }
 
 bool Entity::has(details::ComponentMask &check_mask)  {
@@ -2555,6 +2516,7 @@ void SystemManager::remove() {
   for (auto it = order_.begin(); it != order_.end(); ++it) {
     if (*it == details::system_index<S>()) {
       order_.erase(it);
+	  break;
     }
   }
 }

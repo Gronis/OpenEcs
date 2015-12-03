@@ -538,12 +538,9 @@ SCENARIO("Testing ecs framework, unittests") {
       WHEN("Assumeing Entity has Wheels, should work") {
         entity.assume<Wheels>().get<Wheels>();
       }
-      // TODO: Find a way to test assert
-      /*
       WHEN("Assumeing Entity has Hat, should not work"){
           REQUIRE_THROWS(entity.assume<Hat>());
       }
-      */
       WHEN("Creating 2 new entities and fetching every Car") {
         entities.create();
         entities.create();
