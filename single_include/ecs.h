@@ -1,6 +1,6 @@
 ///
 /// OpenEcs v0.1.101
-/// Generated: 2015-12-06 19:56:47.400110
+/// Generated: 2015-12-06 20:06:31.012142
 /// ----------------------------------------------------------
 /// This file has been generated from multiple files. Do not modify
 /// ----------------------------------------------------------
@@ -687,7 +687,7 @@ class EntityManager: details::forbid_copies {
     static_assert(sizeof...(Args) == 1, ECS_ASSERT_MSG_ONLY_ONE_ARGS_PROPERTY_CONSTRUCTOR);
     //static_assert(sizeof(C) == sizeof(std::tuple < Args... > ),
     //"Cannot initilize component property. Please provide a constructor");
-    return reinterpret_cast<C&&>(std::move(typename C::ValueType(std::forward<Args>(args)...)));
+    return reinterpret_cast<C&>(std::move(typename C::ValueType(std::forward<Args>(args)...)));
   }
 
   /// Creates a component for a specific entity with Args
@@ -1519,6 +1519,7 @@ class UnallocatedEntity {
 } // namespace ecs
 
 // #included from: UnallocatedEntity.inl
+#include <cstring>
 
 namespace ecs{
 

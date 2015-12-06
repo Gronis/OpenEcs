@@ -1,5 +1,6 @@
 #include "UnallocatedEntity.h"
 #include "ComponentManager.h"
+#include <cstring>
 
 namespace ecs{
 
