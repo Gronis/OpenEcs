@@ -7,6 +7,7 @@ namespace ecs {
 template <typename...>
 class EntityAlias;
 class Entity;
+class UnallocatedEntity;
 template<typename>
 class View;
 class Id;
@@ -52,7 +53,7 @@ class EntityManager: details::forbid_copies {
   inline ~EntityManager();
 
   /// Create a new Entity
-  inline Entity create();
+  inline UnallocatedEntity create();
 
   /// Create a specified number of new entities.
   inline std::vector <Entity> create(const size_t num_of_entities);
@@ -136,6 +137,9 @@ class EntityManager: details::forbid_copies {
   template<typename C>
   inline details::ComponentManager <C> const &get_component_manager() const;
 
+  inline details::BaseManager &get_component_manager(size_t component_index);
+  inline details::BaseManager const &get_component_manager(size_t component_index) const;
+
   /// Get component for a specific entity or index.
   template<typename C>
   inline C &get_component(Entity &entity);
@@ -179,10 +183,9 @@ class EntityManager: details::forbid_copies {
           std::is_base_of<details::BaseProperty, C>::value,
       C>::type {
     static_assert(sizeof...(Args) == 1, ECS_ASSERT_MSG_ONLY_ONE_ARGS_PROPERTY_CONSTRUCTOR);
-    static_assert(sizeof(C) == sizeof(std::tuple < Args... > ),
-    "Cannot initilize component property. Please provide a constructor");
-    auto tmp = typename C::ValueType(std::forward<Args>(args)...);
-    return *reinterpret_cast<C *>(&tmp);
+    //static_assert(sizeof(C) == sizeof(std::tuple < Args... > ),
+    //"Cannot initilize component property. Please provide a constructor");
+    return reinterpret_cast<C&&>(std::move(typename C::ValueType(std::forward<Args>(args)...)));
   }
 
   /// Creates a component for a specific entity with Args
@@ -266,6 +269,7 @@ class EntityManager: details::forbid_copies {
   template<typename T>
   friend class Iterator;
   friend class Entity;
+  friend class UnallocatedEntity;
   friend class BaseComponent;
 };
 

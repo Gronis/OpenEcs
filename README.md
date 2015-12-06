@@ -77,6 +77,20 @@ entity.set<Health>(20);
 entity.add<Health>(10);// <- Assert failure, component already added
 ```
 
+NOTE: In order to call the "set" method, the copy constructor for the component should not be deleted, as the copy constructor will be used if the entity already has a component of that type. However, "add" does not have this requirement, since we know that the entity does not have that component beforehand, and components without the copy constructor can be added.
+
+```cpp
+struct Health{
+    Health(const & Health) = delete; //<-- removed copy constructor  
+};
+
+Entity entity = entities.create(); 
+entity.set<Health>(10); //<-- compiler error, copy constructor deleted
+
+entity.add<Health>(10); //<-- OK
+```
+
+
 To reduce boilerplate code, the constructor is optional. If setting variables is then only thing that happens in the constructor, leave it be.
 
 ```cpp

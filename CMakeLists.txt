@@ -44,7 +44,7 @@ endif()
 
 # Adds sources and headers to project
 file( GLOB_RECURSE PROJ_SOURCES include/*.cpp)
-file( GLOB_RECURSE PROJ_HEADERS include/*.h)
+file( GLOB_RECURSE PROJ_HEADERS include/*.h include/*.inl)
 file( GLOB_RECURSE PROJ_TEST_SOURCES test/common/*.cpp )
 file( GLOB_RECURSE PROJ_TEST_HEADERS test/common/*.hpp )
 include_directories( ${PROJ_INCLUDES} ${LIB_INCLUDES} ${PROJ_TEST_INCLUDES})

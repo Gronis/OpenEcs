@@ -1,6 +1,6 @@
 ///
 /// OpenEcs v0.1.101
-/// Generated: 2015-12-03 20:19:32.602709
+/// Generated: 2015-12-06 19:56:47.400110
 /// ----------------------------------------------------------
 /// This file has been generated from multiple files. Do not modify
 /// ----------------------------------------------------------
@@ -421,6 +421,26 @@ namespace details{
 // Forward declarations
 class BaseProperty;
 
+///-----------------------------------------------------------------------
+/// global function for creating a component at a specific location
+///-----------------------------------------------------------------------
+template<typename C, typename ...Args>
+auto create_component(void* ptr, Args && ... args) ->
+typename std::enable_if<std::is_constructible<C, Args...>::value, C&>::type;
+
+// Creating a component that doesn't have ctor, and is not a property -> create using uniform initialization
+template<typename C, typename ...Args>
+auto create_component(void* ptr, Args && ... args) ->
+typename std::enable_if<!std::is_constructible<C, Args...>::value &&
+    !std::is_base_of<details::BaseProperty, C>::value, C&>::type;
+
+// Creating a component that doesn't have ctor, and is a property -> create using underlying Property ctor
+template<typename C, typename ...Args>
+auto create_component(void* ptr, Args && ... args) ->
+typename std::enable_if<
+    !std::is_constructible<C, Args...>::value &&
+        std::is_base_of<details::BaseProperty, C>::value, C&>::type;
+
 ///---------------------------------------------------------------------
 /// Helper class, all ComponentManager are a BaseManager
 ///---------------------------------------------------------------------
@@ -429,6 +449,9 @@ class BaseManager {
   virtual ~BaseManager() { };
   virtual void remove(index_t index) = 0;
   virtual ComponentMask mask() = 0;
+  virtual void* get_void_ptr(index_t index) = 0;
+  virtual void const* get_void_ptr(index_t index) const = 0;
+  virtual void ensure_min_size(index_t size) = 0;
 };
 
 ///---------------------------------------------------------------------
@@ -456,6 +479,13 @@ class ComponentManager: public BaseManager, details::forbid_copies {
   C* get_ptr(index_t index);
   C const* get_ptr(index_t index) const;
 
+  /// Access a raw void ptr to a component given a specific index
+  void* get_void_ptr(index_t index);
+  void const* get_void_ptr(index_t index) const;
+
+  // Ensures the pool that at it has the size of at least size
+  void ensure_min_size(index_t size);
+
   /// Get the bitmask for the component this ComponentManger handles
   ComponentMask mask();
 
@@ -479,6 +509,7 @@ namespace ecs {
 template <typename...>
 class EntityAlias;
 class Entity;
+class UnallocatedEntity;
 template<typename>
 class View;
 class Id;
@@ -524,7 +555,7 @@ class EntityManager: details::forbid_copies {
   inline ~EntityManager();
 
   /// Create a new Entity
-  inline Entity create();
+  inline UnallocatedEntity create();
 
   /// Create a specified number of new entities.
   inline std::vector <Entity> create(const size_t num_of_entities);
@@ -608,6 +639,9 @@ class EntityManager: details::forbid_copies {
   template<typename C>
   inline details::ComponentManager <C> const &get_component_manager() const;
 
+  inline details::BaseManager &get_component_manager(size_t component_index);
+  inline details::BaseManager const &get_component_manager(size_t component_index) const;
+
   /// Get component for a specific entity or index.
   template<typename C>
   inline C &get_component(Entity &entity);
@@ -651,10 +685,9 @@ class EntityManager: details::forbid_copies {
           std::is_base_of<details::BaseProperty, C>::value,
       C>::type {
     static_assert(sizeof...(Args) == 1, ECS_ASSERT_MSG_ONLY_ONE_ARGS_PROPERTY_CONSTRUCTOR);
-    static_assert(sizeof(C) == sizeof(std::tuple < Args... > ),
-    "Cannot initilize component property. Please provide a constructor");
-    auto tmp = typename C::ValueType(std::forward<Args>(args)...);
-    return *reinterpret_cast<C *>(&tmp);
+    //static_assert(sizeof(C) == sizeof(std::tuple < Args... > ),
+    //"Cannot initilize component property. Please provide a constructor");
+    return reinterpret_cast<C&&>(std::move(typename C::ValueType(std::forward<Args>(args)...)));
   }
 
   /// Creates a component for a specific entity with Args
@@ -738,6 +771,7 @@ class EntityManager: details::forbid_copies {
   template<typename T>
   friend class Iterator;
   friend class Entity;
+  friend class UnallocatedEntity;
   friend class BaseComponent;
 };
 
@@ -893,29 +927,57 @@ inline bool operator!=(const Entity &lhs, const Entity &rhs);
 #ifndef ECS_ENTITYALIAS_H
 #define ECS_ENTITYALIAS_H
 
-namespace ecs{
+// #included from: BaseEntity.h
+//
+// Created by Robin Grönberg on 05/12/15.
+//
 
-namespace details{
+#ifndef OPENECS_BASEENTITY_H
+#define OPENECS_BASEENTITY_H
+
+namespace ecs {
+
+namespace details {
 
 class BaseEntity {
  public:
   inline BaseEntity(const Entity &entity);
  protected:
   inline BaseEntity();
+  inline BaseEntity(EntityManager* manager);
   inline BaseEntity(const BaseEntity &other);
 
   inline EntityManager &entities() { return *manager_; }
   inline Entity &entity() { return entity_; }
+  inline EntityManager const& entities() const { return *manager_; }
+  inline Entity const& entity() const { return entity_; }
  private:
   union {
     EntityManager *manager_;
     Entity entity_;
   };
-  template<typename ... Components>
-  friend class ecs::EntityAlias;
 }; //BaseEntity
 
 } // namespace details
+
+} // namespace ecs
+
+// #included from: BaseEntity.inl
+
+namespace ecs {
+
+namespace details {
+
+BaseEntity::BaseEntity(const Entity &entity) : entity_(entity) { }
+BaseEntity::BaseEntity() { }
+BaseEntity::BaseEntity(EntityManager * manager) : manager_(manager){ }
+BaseEntity::BaseEntity(const BaseEntity &other) : entity_(other.entity_) { }
+
+} // namespace details
+
+} // namespace ecs
+#endif //OPENECS_BASEENTITY_H
+namespace ecs{
 
 ///---------------------------------------------------------------------
 /// EntityAlias is a wrapper around an Entity
@@ -941,10 +1003,6 @@ class EntityAlias : public details::BaseEntity {
   /// Cast to Entity or EntityAlias
   inline operator Entity &();
   inline operator Entity const &() const;
-  template<typename T>
-  inline operator const T &() const;
-  template<typename T>
-  inline operator T &();
 
   inline bool operator==(const Entity &rhs) const;
   inline bool operator!=(const Entity &rhs) const;
@@ -1050,167 +1108,147 @@ class EntityAlias : public details::BaseEntity {
 
 namespace ecs{
 
-namespace details{
-
-BaseEntity::BaseEntity(const Entity &entity) : entity_(entity) {  }
-BaseEntity::BaseEntity() { }
-BaseEntity::BaseEntity(const BaseEntity &other) : entity_(other.entity_) { }
-
-} // namespace details
+template<typename ...Cs>
+EntityAlias<Cs...>::EntityAlias() { }
 
 template<typename ...Cs>
 EntityAlias<Cs...>::EntityAlias(const Entity &entity) : details::BaseEntity(entity) {}
 
 template<typename ...Cs>
 EntityAlias<Cs...>::operator Entity &() {
-  return entity_;
+  return entity();
 }
 
 template<typename ...Cs>
 EntityAlias<Cs...>::operator Entity const &() const {
-  return entity_;
-}
-
-template<typename ...Cs> template<typename T>
-EntityAlias<Cs...>::operator const T &() const{
-  return as<T>();
-}
-
-template<typename ...Cs> template<typename T>
-EntityAlias<Cs...>::operator T &(){
-  return as<T>();
+  return entity();
 }
 
 template<typename ...Cs>
 Id &EntityAlias<Cs...>::id() {
-  return entity_.id();
+  return entity().id();
 }
 
 template<typename ...Cs>
 Id const &EntityAlias<Cs...>::id() const {
-  return entity_.id();
+  return entity().id();
 }
 
 template<typename ...Cs> template<typename C>
 inline auto EntityAlias<Cs...>::get() ->
 typename std::enable_if<is_component<C>::value, C &>::type{
-  return manager_->get_component_fast<C>(entity_);
+  return entities().template get_component_fast<C>(entity());
 }
 
 template<typename ...Cs> template<typename C>
 inline auto EntityAlias<Cs...>::get() const ->
 typename std::enable_if<is_component<C>::value, C const &>::type{
-  return manager_->get_component_fast<C>(entity_);
+  return entities().template get_component_fast<C>(entity());
 }
 
 template<typename ...Cs> template<typename C>
 inline auto EntityAlias<Cs...>::get() ->
 typename std::enable_if<!is_component<C>::value, C &>::type{
-  return entity_.get<C>();
+  return entity().template get<C>();
 }
 
 template<typename ...Cs> template<typename C>
 inline auto EntityAlias<Cs...>::get() const ->
 typename std::enable_if<!is_component<C>::value, C const &>::type{
-  return entity_.get<C>();
+  return entity().template get<C>();
 }
 
 template<typename ...Cs> template<typename C, typename ... Args>
 inline auto EntityAlias<Cs...>::set(Args &&... args) ->
 typename std::enable_if<is_component<C>::value, C &>::type{
-  return manager_->set_component_fast<C>(entity_, std::forward<Args>(args)...);
+  return entities().template set_component_fast<C>(entity(), std::forward<Args>(args)...);
 }
 
 template<typename ...Cs> template<typename C, typename ... Args>
 inline auto EntityAlias<Cs...>::set(Args &&... args) ->
 typename std::enable_if<!is_component<C>::value, C &>::type{
-  return manager_->set_component<C>(entity_, std::forward<Args>(args)...);
+  return entities().template set_component<C>(entity(), std::forward<Args>(args)...);
 }
 
 template<typename ...Cs> template<typename C, typename ... Args>
 inline C& EntityAlias<Cs...>::add(Args &&... args) {
-  return entity_.add<C>(std::forward<Args>(args)...);
+  return entity().template add<C>(std::forward<Args>(args)...);
 }
 
 template<typename ...Cs> template<typename C>
 C & EntityAlias<Cs...>::as() {
-  return entity_.as<C>();
+  return entity().template as<C>();
 }
 
 template<typename ...Cs> template<typename C>
 C const & EntityAlias<Cs...>::as() const {
-  return entity_.as<C>();
+  return entity().template as<C>();
 }
 
 template<typename ...Cs> template<typename ...Components_>
 EntityAlias<Components_...> &EntityAlias<Cs...>::assume() {
-  return entity_.assume<Components_...>();
+  return entity().template assume<Components_...>();
 }
 
 template<typename ...Cs> template<typename ...Components>
 EntityAlias<Components...> const &EntityAlias<Cs...>::assume() const {
-  return entity_.assume<Components...>();
+  return entity().template assume<Components...>();
 }
 
 template<typename ...Cs> template<typename C>
 inline auto EntityAlias<Cs...>::remove() ->
 typename std::enable_if<!is_component<C>::value, void>::type {
-  entity_.remove<C>();
+  entity().template remove<C>();
 }
 
 template<typename ...Cs> template<typename C>
 inline auto EntityAlias<Cs...>::remove() ->
 typename std::enable_if<is_component<C>::value, void>::type {
-  manager_->remove_component_fast<C>(entity_);
+  entities().template remove_component_fast<C>(entity());
 }
 
 template<typename ...Cs>
 void EntityAlias<Cs...>::remove_everything() {
-  entity_.remove_everything();
+  entity().remove_everything();
 }
 
 template<typename ...Cs>
 void EntityAlias<Cs...>::clear_mask() {
-  entity_.clear_mask();
+  entity().clear_mask();
 }
 
 template<typename ...Cs>
 void EntityAlias<Cs...>::destroy() {
-  entity_.destroy();
+  entity().destroy();
 }
 
 template<typename ...Cs> template<typename... Components>
 bool EntityAlias<Cs...>::has() {
-  return entity_.has<Components...>();
+  return entity().template has<Components...>();
 }
 
 template<typename ...Cs> template<typename... Components>
 bool EntityAlias<Cs...>::has() const {
-  return entity_.has<Components...>();
+  return entity().template has<Components...>();
 }
 
 template<typename ...Cs> template<typename T>
 bool EntityAlias<Cs...>::is() {
-  return entity_.is<T>();
+  return entity().template is<T>();
 }
 template<typename ...Cs> template<typename T>
 bool EntityAlias<Cs...>::is() const {
-  return entity_.is<T>();
+  return entity().template is<T>();
 }
 
 template<typename ...Cs>
 bool EntityAlias<Cs...>::is_valid() {
-  return entity_.is_valid();
+  return entity().is_valid();
 }
 
 template<typename ...Cs>
 bool EntityAlias<Cs...>::is_valid() const {
-  return entity_.is_valid();
-}
-
-template<typename ...Cs>
-EntityAlias<Cs...>::EntityAlias() {
-
+  return entity().is_valid();
 }
 
 template<typename ...Cs>
@@ -1220,12 +1258,12 @@ details::ComponentMask EntityAlias<Cs...>::static_mask(){
 
 template<typename ... Cs>
 inline bool EntityAlias<Cs...>::operator==(const Entity &rhs) const {
-  return entity_ == rhs;
+  return entity() == rhs;
 }
 
 template<typename ... Cs>
 inline bool EntityAlias<Cs...>::operator!=(const Entity &rhs) const {
-  return entity_ != rhs;
+  return entity() != rhs;
 }
 
 } // namespace ecs
@@ -1370,6 +1408,346 @@ details::ComponentMask Entity::static_mask(){
 
 } // namespace ecs
 #endif //ECS_ENTITY_H
+// #included from: UnallocatedEntity.h
+//
+// Created by Robin Grönberg on 05/12/15.
+//
+
+#ifndef OPENECS_UNALLOCATEDENTITY_H
+#define OPENECS_UNALLOCATEDENTITY_H
+
+#include <vector>
+
+namespace ecs{
+
+///---------------------------------------------------------------------
+/// UnallocatedEntity is used when creating an Entity but postponing
+/// allocation for memory in the EntityManager
+///---------------------------------------------------------------------
+///
+/// UnallocatedEntity is used when creating an Entity from the
+/// EntityManager but does not allocate memory inside the EntityManager
+/// until the UnallocatedEntity is assigned, or goes out of scope.
+///
+/// The purpose of doing this is to postpone the placement of the Entity
+/// until components have been attached. Then, the EntityManager knows
+/// what components that the entity has, and can place the entity close
+/// to similar entities in memory. This leads to better usage of the
+/// CPU cache
+///
+/// An UnallocatedEntity can always be implicitly casted to an Entity.
+///
+/// Au UnallocatedEntity is assumed unallocated as long as entity_ is
+/// a nullptr
+///---------------------------------------------------------------------
+class UnallocatedEntity {
+ private:
+  struct ComponentHeader{
+    unsigned int index, size;
+  };
+ public:
+  inline UnallocatedEntity(EntityManager &manager);
+  inline UnallocatedEntity &operator=(const UnallocatedEntity &rhs);
+  inline ~UnallocatedEntity();
+
+  /// Cast to Entity or EntityAlias
+  inline operator Entity &();
+
+  inline bool operator==(const UnallocatedEntity &rhs) const;
+  inline bool operator!=(const UnallocatedEntity &rhs) const;
+  inline bool operator==(const Entity &rhs) const;
+  inline bool operator!=(const Entity &rhs) const;
+
+  inline Id &id();
+
+  /// Returns the requested component, or error if it doesn't exist
+  template<typename C> inline C &get();
+  template<typename C> inline C const &get() const;
+
+  /// Set the requested component, if old component exist,
+  /// a new one is created. Otherwise, the assignment operator
+  /// is used.
+  template<typename C, typename ... Args> inline C &set(Args &&... args);
+
+  /// Add the requested component, error if component of the same type exist already
+  template<typename C, typename ... Args> inline C &add(Args &&... args);
+
+  /// Access this Entity as an EntityAlias.
+  template<typename T> inline T &as();
+
+  /// Assume that this entity has provided Components
+  /// Use for faster component access calls
+  template<typename ...Components> inline EntityAlias<Components...> &assume();
+
+  /// Removes a component. Error of it doesn't exist
+  template<typename C> inline void remove();
+
+  /// Removes all components and call destructors
+  void inline remove_everything();
+
+  /// Clears the component mask without destroying components (faster than remove_everything)
+  void inline clear_mask();
+
+  /// Destroys this entity. Removes all components as well
+  void inline destroy();
+
+  /// Return true if entity has all specified components. False otherwise
+  template<typename... Components> inline bool has() const;
+
+  /// Returns whether an entity is an entity alias or not
+  template<typename T> inline bool is() const;
+
+  /// Returns true if entity has not been destroyed. False otherwise
+  bool inline is_valid() const;
+
+  /// Allocates memory for this Entity. Once allocated, the Unallocated Entity function like a
+  /// normal Entity
+  void inline allocate();
+
+ private:
+
+  bool inline is_allocated() const;
+
+  EntityManager * manager_ = nullptr;
+  Entity entity_;
+  std::vector<char> component_data;
+  std::vector<ComponentHeader> component_headers_;
+  details::ComponentMask mask_ = details::ComponentMask(0);
+
+}; //UnallocatedEntity
+
+} // namespace ecs
+
+// #included from: UnallocatedEntity.inl
+
+namespace ecs{
+
+UnallocatedEntity::UnallocatedEntity(EntityManager& manager) : manager_(&manager), entity_(&manager, Id(index_t(-1),0)){ }
+
+UnallocatedEntity::~UnallocatedEntity(){
+  allocate();
+}
+
+UnallocatedEntity& UnallocatedEntity::operator=(const UnallocatedEntity &rhs){
+  allocate();
+  manager_ = rhs.manager_;
+  entity_ = rhs.entity_;
+  component_data = rhs.component_data;
+  component_headers_ = rhs.component_headers_;
+  return *this;
+}
+
+UnallocatedEntity::operator Entity &() {
+  allocate();
+  return entity_;
+}
+
+Id& UnallocatedEntity::id() {
+  allocate();
+  return entity_.id();
+}
+
+template<typename C>
+C& UnallocatedEntity::get() {
+  ECS_ASSERT(is_valid(), "Unallocated Entity invalid");
+  ECS_ASSERT(has<C>(), "UnallocatedEntity does not have Component Attached");
+  if(is_allocated()){
+    return entity_.get<C>();
+  }
+  int index = 0;
+  for (auto& componentHeader : component_headers_) {
+    if(componentHeader.index == details::component_index<C>()){
+      return *reinterpret_cast<C*>(&component_data[index]);
+    }
+    index += componentHeader.size;
+  }
+  //should not happen
+  return *static_cast<C*>(nullptr);
+}
+
+template<typename C>
+C const & UnallocatedEntity::get() const {
+  ECS_ASSERT(is_valid(), "Unallocated Entity invalid");
+  ECS_ASSERT(has<C>(), "UnallocatedEntity does not have Component Attached");
+  if(is_allocated()){
+    return entity_.get<C>();
+  }else{
+    int index = 0;
+    for (auto& componentHeader : component_headers_) {
+      if(componentHeader.index == details::component_index<C>()){
+        return *reinterpret_cast<C*>(&component_data[index]);
+      }
+      index += componentHeader.size;
+    }
+  }
+  //should not happen
+  return *static_cast<C*>(nullptr);
+}
+
+template<typename C, typename ... Args>
+C& UnallocatedEntity::set(Args &&... args){
+  if(is_allocated()){
+    return entity_.set<C>(std::forward<Args>(args)...);
+  }
+  if(has<C>()){
+    return get<C>() = manager_->create_tmp_component<C>(std::forward<Args>(args)...);
+  }else{
+    return add<C>(std::forward<Args>(args)...);
+  }
+}
+
+template<typename C, typename ... Args>
+C& UnallocatedEntity::add(Args &&... args){
+  if(is_allocated()){
+    return entity_.add<C>(std::forward<Args>(args)...);
+  }
+  ECS_ASSERT(!has<C>(), "Unallocated Entity cannot assign already assigned component with add. Use set instead");
+  ECS_ASSERT(is_valid(), "Unallocated Entity invalid");
+  int index = 0;
+  //Find component location in memory
+  for (auto componentHeader : component_headers_) {
+    index += componentHeader.size;
+  }
+  //Ensure that a component manager exists for C
+  manager_->get_component_manager<C>();
+  //Set component data
+  auto component_index = details::component_index<C>();
+  mask_.set(component_index);
+  component_headers_.push_back(ComponentHeader{static_cast<unsigned int>(component_index), sizeof(C)});
+  component_data.resize(index + sizeof(C));
+  return details::create_component<C>(&component_data[index], std::forward<Args>(args)...);
+}
+
+template<typename C>
+C & UnallocatedEntity::as() {
+  allocate();
+  return entity_.as<C>();
+}
+
+template<typename ...Components_>
+EntityAlias<Components_...> & UnallocatedEntity::assume() {
+  allocate();
+  return entity_.assume<Components_...>();
+}
+
+template<typename C>
+void UnallocatedEntity::remove() {
+  if(is_allocated()){
+    entity_.remove<C>();
+  }else{
+    int index = 0;
+    auto component_index = details::component_index<C>();
+    for (auto& componentHeader : component_headers_) {
+      if(componentHeader.index == component_index){
+        C& component = *reinterpret_cast<C*>(&component_data[index]);
+        component.~C();
+        break;
+      }
+      index += componentHeader.size;
+    }
+    mask_.reset(component_index);
+  }
+}
+
+void UnallocatedEntity::remove_everything() {
+  if(is_allocated()){
+    entity_.remove_everything();
+  }else{
+    //TODO: call dtors on components
+    component_headers_.clear();
+    mask_.reset();
+  }
+}
+
+void UnallocatedEntity::clear_mask() {
+  if(is_allocated()){
+    entity_.clear_mask();
+  } else{
+    component_headers_.clear();
+    mask_.reset();
+  }
+}
+
+void UnallocatedEntity::destroy() {
+  if(is_allocated()){
+    entity_.destroy();
+  }else{
+    manager_ = nullptr;
+  }
+}
+
+template<typename... Components>
+bool UnallocatedEntity::has() const {
+  if(is_allocated()){
+    return entity_.has<Components...>();
+  }else{
+    auto component_mask = details::component_mask<Components...>();
+    return (component_mask & mask_) == component_mask;
+  }
+}
+
+template<typename T>
+bool UnallocatedEntity::is() const {
+  if(is_allocated()){
+    return entity_.is<T>();
+  }else{
+    ECS_ASSERT_IS_ENTITY(T);
+    ECS_ASSERT_ENTITY_CORRECT_SIZE(T);
+    auto component_mask = T::static_mask();
+    return (component_mask & mask_) == component_mask;
+  }
+}
+
+bool UnallocatedEntity::is_valid() const {
+  if(is_allocated()){
+    return entity_.is_valid();
+  }else{
+    return manager_ != nullptr;
+  }
+}
+
+inline bool operator==(const UnallocatedEntity &lhs, const UnallocatedEntity &rhs) {
+  return &lhs == &rhs;
+}
+
+inline bool operator!=(const UnallocatedEntity &lhs, const UnallocatedEntity &rhs) {
+  return &lhs != &rhs;
+}
+
+inline bool UnallocatedEntity::operator==(const Entity &rhs) const {
+  return &entity_ == &rhs;
+}
+
+inline bool UnallocatedEntity::operator!=(const Entity &rhs) const {
+  return &entity_ != &rhs;
+}
+
+bool UnallocatedEntity::is_allocated() const {
+  return manager_ == nullptr;
+}
+
+void UnallocatedEntity::allocate() {
+  if(!is_allocated()){
+    entity_ = manager_->create_with_mask(mask_);
+    if(component_headers_.size() > 0){
+      auto index = entity_.id().index();
+      manager_->mask(index) |= mask_;
+      unsigned int offset = 0;
+      //TODO: set mask
+      for (auto componentHeader : component_headers_) {
+        details::BaseManager& componentManager = manager_->get_component_manager(componentHeader.index);
+        componentManager.ensure_min_size(index);
+        //Copy data from tmp location to acctuial location in component manager
+        std::memcpy(componentManager.get_void_ptr(index), &component_data[offset], componentHeader.size);
+        offset+=componentHeader.size;
+      }
+    }
+    manager_ = nullptr;
+  }
+}
+
+} // namespace ecs
+#endif //OPENECS_UNALLOCATEDENTITY_H
 
 namespace ecs{
 
@@ -1431,8 +1809,8 @@ EntityManager::~EntityManager()  {
   index_to_component_mask.clear();
 }
 
-Entity EntityManager::create() {
-  return create_with_mask(details::ComponentMask(0));
+UnallocatedEntity EntityManager::create() {
+  return UnallocatedEntity(*this);
 }
 
 std::vector<Entity> EntityManager::create(const size_t num_of_entities)  {
@@ -1670,6 +2048,15 @@ details::ComponentManager<C> const &EntityManager::get_component_manager() const
   return *reinterpret_cast<details::ComponentManager<C> *>(component_managers_[index]);
 }
 
+details::BaseManager &EntityManager::get_component_manager(size_t component_index){
+  ECS_ASSERT(component_managers_.size() > component_index, "ComponentManager not created with that component index.");
+  return *component_managers_[component_index];
+}
+details::BaseManager const &EntityManager::get_component_manager(size_t component_index) const{
+  ECS_ASSERT(component_managers_.size() > component_index, "ComponentManager not created with that component index.");
+  return *component_managers_[component_index];
+}
+
 template<typename C>
 C &EntityManager::get_component(Entity &entity) {
   ECS_ASSERT(has_component<C>(entity), "Entity doesn't have this component attached");
@@ -1838,16 +2225,16 @@ ComponentManager<C>::ComponentManager(EntityManager &manager, size_t chunk_size)
 // Creating a component that has a defined ctor
 template<typename C, typename ...Args>
 auto create_component(void* ptr, Args && ... args) ->
-typename std::enable_if<std::is_constructible<C, Args...>::value, void>::type {
-  new(ptr) C(std::forward<Args>(args)...);
+typename std::enable_if<std::is_constructible<C, Args...>::value, C&>::type {
+  return *new(ptr) C(std::forward<Args>(args)...);
 }
 
 // Creating a component that doesn't have ctor, and is not a property -> create using uniform initialization
 template<typename C, typename ...Args>
 auto create_component(void* ptr, Args && ... args) ->
 typename std::enable_if<!std::is_constructible<C, Args...>::value &&
-    !std::is_base_of<details::BaseProperty, C>::value, void>::type {
-  new(ptr) C{std::forward<Args>(args)...};
+    !std::is_base_of<details::BaseProperty, C>::value, C&>::type {
+  return *new(ptr) C{std::forward<Args>(args)...};
 }
 
 // Creating a component that doesn't have ctor, and is a property -> create using underlying Property ctor
@@ -1855,9 +2242,9 @@ template<typename C, typename ...Args>
 auto create_component(void* ptr, Args && ... args) ->
 typename std::enable_if<
     !std::is_constructible<C, Args...>::value &&
-        std::is_base_of<details::BaseProperty, C>::value, void>::type {
+        std::is_base_of<details::BaseProperty, C>::value, C&>::type {
   static_assert(sizeof...(Args) <= 1, ECS_ASSERT_MSG_ONLY_ONE_ARGS_PROPERTY_CONSTRUCTOR);
-  new(ptr) typename C::ValueType(std::forward<Args>(args)...);
+  return *reinterpret_cast<C*>(new(ptr) typename C::ValueType(std::forward<Args>(args)...));
 }
 
 template<typename C> template<typename ...Args>
@@ -1896,6 +2283,21 @@ C *ComponentManager<C>::get_ptr(index_t index)  {
 template<typename C>
 C const *ComponentManager<C>::get_ptr(index_t index) const {
   return pool_.get_ptr(index);
+}
+
+template<typename C>
+void *ComponentManager<C>::get_void_ptr(index_t index)  {
+  return pool_.get_ptr(index);
+}
+
+template<typename C>
+void const *ComponentManager<C>::get_void_ptr(index_t index) const {
+  return pool_.get_ptr(index);
+}
+
+template<typename C>
+void ComponentManager<C>::ensure_min_size(index_t size){
+  pool_.ensure_min_size(size);
 }
 
 template<typename C>

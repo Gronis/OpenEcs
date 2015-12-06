@@ -1,4 +1,5 @@
 #include "Entity.h"
+#include "UnallocatedEntity.h"
 
 namespace ecs{
 
@@ -61,8 +62,8 @@ EntityManager::~EntityManager()  {
   index_to_component_mask.clear();
 }
 
-Entity EntityManager::create() {
-  return create_with_mask(details::ComponentMask(0));
+UnallocatedEntity EntityManager::create() {
+  return UnallocatedEntity(*this);
 }
 
 
@@ -305,6 +306,15 @@ details::ComponentManager<C> const &EntityManager::get_component_manager() const
   ECS_ASSERT(component_managers_.size() > index, component_managers_[index] == nullptr &&
       "Component manager not created");
   return *reinterpret_cast<details::ComponentManager<C> *>(component_managers_[index]);
+}
+
+details::BaseManager &EntityManager::get_component_manager(size_t component_index){
+  ECS_ASSERT(component_managers_.size() > component_index, "ComponentManager not created with that component index.");
+  return *component_managers_[component_index];
+}
+details::BaseManager const &EntityManager::get_component_manager(size_t component_index) const{
+  ECS_ASSERT(component_managers_.size() > component_index, "ComponentManager not created with that component index.");
+  return *component_managers_[component_index];
 }
 
 template<typename C>
