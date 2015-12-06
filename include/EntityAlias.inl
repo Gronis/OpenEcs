@@ -1,14 +1,10 @@
 #include "Utils.h"
+#include "EntityAlias.h"
 
 namespace ecs{
 
-namespace details{
-
-BaseEntity::BaseEntity(const Entity &entity) : entity_(entity) {  }
-BaseEntity::BaseEntity() { }
-BaseEntity::BaseEntity(const BaseEntity &other) : entity_(other.entity_) { }
-
-} // namespace details
+template<typename ...Cs>
+EntityAlias<Cs...>::EntityAlias() { }
 
 template<typename ...Cs>
 EntityAlias<Cs...>::EntityAlias(const Entity &entity) : details::BaseEntity(entity) {}
@@ -16,155 +12,140 @@ EntityAlias<Cs...>::EntityAlias(const Entity &entity) : details::BaseEntity(enti
 
 template<typename ...Cs>
 EntityAlias<Cs...>::operator Entity &() {
-  return entity_;
+  return entity();
 }
 
 template<typename ...Cs>
 EntityAlias<Cs...>::operator Entity const &() const {
-  return entity_;
-}
-
-template<typename ...Cs> template<typename T>
-EntityAlias<Cs...>::operator const T &() const{
-  return as<T>();
-}
-
-template<typename ...Cs> template<typename T>
-EntityAlias<Cs...>::operator T &(){
-  return as<T>();
+  return entity();
 }
 
 template<typename ...Cs>
 Id &EntityAlias<Cs...>::id() {
-  return entity_.id();
+  return entity().id();
 }
 
 template<typename ...Cs>
 Id const &EntityAlias<Cs...>::id() const {
-  return entity_.id();
+  return entity().id();
 }
 
 template<typename ...Cs> template<typename C>
 inline auto EntityAlias<Cs...>::get() ->
 typename std::enable_if<is_component<C>::value, C &>::type{
-  return manager_->get_component_fast<C>(entity_);
+  return entities().template get_component_fast<C>(entity());
 }
 
 template<typename ...Cs> template<typename C>
 inline auto EntityAlias<Cs...>::get() const ->
 typename std::enable_if<is_component<C>::value, C const &>::type{
-  return manager_->get_component_fast<C>(entity_);
+  return entities().template get_component_fast<C>(entity());
 }
 
 template<typename ...Cs> template<typename C>
 inline auto EntityAlias<Cs...>::get() ->
 typename std::enable_if<!is_component<C>::value, C &>::type{
-  return entity_.get<C>();
+  return entity().template get<C>();
 }
 
 template<typename ...Cs> template<typename C>
 inline auto EntityAlias<Cs...>::get() const ->
 typename std::enable_if<!is_component<C>::value, C const &>::type{
-  return entity_.get<C>();
+  return entity().template get<C>();
 }
 
 template<typename ...Cs> template<typename C, typename ... Args>
 inline auto EntityAlias<Cs...>::set(Args &&... args) ->
 typename std::enable_if<is_component<C>::value, C &>::type{
-  return manager_->set_component_fast<C>(entity_, std::forward<Args>(args)...);
+  return entities().template set_component_fast<C>(entity(), std::forward<Args>(args)...);
 }
 
 template<typename ...Cs> template<typename C, typename ... Args>
 inline auto EntityAlias<Cs...>::set(Args &&... args) ->
 typename std::enable_if<!is_component<C>::value, C &>::type{
-  return manager_->set_component<C>(entity_, std::forward<Args>(args)...);
+  return entities().template set_component<C>(entity(), std::forward<Args>(args)...);
 }
 
 
 template<typename ...Cs> template<typename C, typename ... Args>
 inline C& EntityAlias<Cs...>::add(Args &&... args) {
-  return entity_.add<C>(std::forward<Args>(args)...);
+  return entity().template add<C>(std::forward<Args>(args)...);
 }
 
 template<typename ...Cs> template<typename C>
 C & EntityAlias<Cs...>::as() {
-  return entity_.as<C>();
+  return entity().template as<C>();
 }
 
 template<typename ...Cs> template<typename C>
 C const & EntityAlias<Cs...>::as() const {
-  return entity_.as<C>();
+  return entity().template as<C>();
 }
 
 template<typename ...Cs> template<typename ...Components_>
 EntityAlias<Components_...> &EntityAlias<Cs...>::assume() {
-  return entity_.assume<Components_...>();
+  return entity().template assume<Components_...>();
 }
 
 template<typename ...Cs> template<typename ...Components>
 EntityAlias<Components...> const &EntityAlias<Cs...>::assume() const {
-  return entity_.assume<Components...>();
+  return entity().template assume<Components...>();
 }
 
 template<typename ...Cs> template<typename C>
 inline auto EntityAlias<Cs...>::remove() ->
 typename std::enable_if<!is_component<C>::value, void>::type {
-  entity_.remove<C>();
+  entity().template remove<C>();
 }
 
 template<typename ...Cs> template<typename C>
 inline auto EntityAlias<Cs...>::remove() ->
 typename std::enable_if<is_component<C>::value, void>::type {
-  manager_->remove_component_fast<C>(entity_);
+  entities().template remove_component_fast<C>(entity());
 }
 
 template<typename ...Cs>
 void EntityAlias<Cs...>::remove_everything() {
-  entity_.remove_everything();
+  entity().remove_everything();
 }
 
 template<typename ...Cs>
 void EntityAlias<Cs...>::clear_mask() {
-  entity_.clear_mask();
+  entity().clear_mask();
 }
 
 template<typename ...Cs>
 void EntityAlias<Cs...>::destroy() {
-  entity_.destroy();
+  entity().destroy();
 }
 
 template<typename ...Cs> template<typename... Components>
 bool EntityAlias<Cs...>::has() {
-  return entity_.has<Components...>();
+  return entity().template has<Components...>();
 }
 
 template<typename ...Cs> template<typename... Components>
 bool EntityAlias<Cs...>::has() const {
-  return entity_.has<Components...>();
+  return entity().template has<Components...>();
 }
 
 template<typename ...Cs> template<typename T>
 bool EntityAlias<Cs...>::is() {
-  return entity_.is<T>();
+  return entity().template is<T>();
 }
 template<typename ...Cs> template<typename T>
 bool EntityAlias<Cs...>::is() const {
-  return entity_.is<T>();
+  return entity().template is<T>();
 }
 
 template<typename ...Cs>
 bool EntityAlias<Cs...>::is_valid() {
-  return entity_.is_valid();
+  return entity().is_valid();
 }
 
 template<typename ...Cs>
 bool EntityAlias<Cs...>::is_valid() const {
-  return entity_.is_valid();
-}
-
-template<typename ...Cs>
-EntityAlias<Cs...>::EntityAlias() {
-
+  return entity().is_valid();
 }
 
 template<typename ...Cs>
@@ -174,12 +155,12 @@ details::ComponentMask EntityAlias<Cs...>::static_mask(){
 
 template<typename ... Cs>
 inline bool EntityAlias<Cs...>::operator==(const Entity &rhs) const {
-  return entity_ == rhs;
+  return entity() == rhs;
 }
 
 template<typename ... Cs>
 inline bool EntityAlias<Cs...>::operator!=(const Entity &rhs) const {
-  return entity_ != rhs;
+  return entity() != rhs;
 }
 
 

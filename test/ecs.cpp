@@ -60,7 +60,9 @@ struct Shoes { };
 
 struct Hat { };
 
-struct Name: Property<std::string> { };
+struct Name: Property<std::string> {
+  //Name(const Name& name) = delete;
+};
 
 struct Velocity {
   float x, y;
@@ -697,17 +699,6 @@ SCENARIO("Testing ecs framework, unittests") {
       }
     }
 
-    WHEN("Creating car implicitly by using create_with<Wheels>()"){
-      Car c = entities.create_with<Wheels>();
-      THEN("Car should have wheels"){
-        REQUIRE(c.has<Wheels>());
-      }
-    }
-
-    WHEN("Creating car implicitly by using create_with<Health>(), should not work"){
-      REQUIRE_THROWS({ Car c = entities.create_with<Health>(); c.get<Wheels>(); });
-    }
-
     WHEN("Adding 1 entity, 1 car, then 1 entity in sequence") {
       Entity e1 = entities.create();
       Car c1 = entities.create<Car>();
@@ -744,6 +735,52 @@ SCENARIO("Testing ecs framework, unittests") {
 
     }
 
+    //Testing UnallocatedEntity
+    GIVEN("An UnallocatedEntity"){
+      Entity e = entities.create();
+      {
+        UnallocatedEntity entity(entities);
+        WHEN("Doing things with the Entity") {
+          entity.set<Health>(1);
+          entity.set<Mana>(10);
+          entity.set<Name>("Hoppsan");
+          THEN("Health should be 1") {
+            REQUIRE(entity.get<Health>() == 1);
+            REQUIRE(entity.get<Mana>() == 10);
+            REQUIRE(entity.get<Name>() == "Hoppsan");
+          }
+          entity.remove<Mana>();
+          THEN("Health should be 1") {
+            REQUIRE(entity.get<Health>() == 1);
+            REQUIRE(!entity.has<Mana>());
+            REQUIRE(entity.get<Name>() == "Hoppsan");
+          }
+          AND_WHEN("Adding components after it was allocated"){
+            Entity e = entity;
+            e.set<Weight>(10);
+            THEN("New and old components should be retained"){
+              REQUIRE(e.get<Health>() == 1);
+              REQUIRE(!e.has<Mana>());
+              REQUIRE(e.get<Name>() == "Hoppsan");
+              REQUIRE(e.get<Weight>() == 10);
+            }
+          }
+        }
+        entity.set<Health>(1);
+        entity.set<Mana>(10);
+        entity.set<Name>("Hoppsan");
+        e = entity;
+      }
+      WHEN("Setting components and allocate Entity"){
+        THEN("Allocated Entity should have all the components"){
+          REQUIRE(e.get<Health>() == 1);
+          REQUIRE(e.get<Mana>() == 10);
+          REQUIRE(e.get<Name>() == "Hoppsan");
+        }
+      }
+
+    }
+
     //Testing Systems
     GIVEN("A SystemManager") {
       SystemManager systems(entities);
@@ -767,7 +804,6 @@ SCENARIO("Testing ecs framework, unittests") {
           THEN("Entity should be removed.") {
             REQUIRE(!e.is_valid());
             REQUIRE(entities.count() == 0);
-
           }
         }
       }

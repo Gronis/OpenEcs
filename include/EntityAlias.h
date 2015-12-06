@@ -1,30 +1,9 @@
 #ifndef ECS_ENTITYALIAS_H
 #define ECS_ENTITYALIAS_H
 
+#include "BaseEntity.h"
+
 namespace ecs{
-
-namespace details{
-
-class BaseEntity {
- public:
-  inline BaseEntity(const Entity &entity);
- protected:
-  inline BaseEntity();
-  inline BaseEntity(const BaseEntity &other);
-
-  inline EntityManager &entities() { return *manager_; }
-  inline Entity &entity() { return entity_; }
- private:
-  union {
-    EntityManager *manager_;
-    Entity entity_;
-  };
-  template<typename ... Components>
-  friend class ecs::EntityAlias;
-}; //BaseEntity
-
-} // namespace details
-
 
 ///---------------------------------------------------------------------
 /// EntityAlias is a wrapper around an Entity
@@ -50,10 +29,6 @@ class EntityAlias : public details::BaseEntity {
   /// Cast to Entity or EntityAlias
   inline operator Entity &();
   inline operator Entity const &() const;
-  template<typename T>
-  inline operator const T &() const;
-  template<typename T>
-  inline operator T &();
 
   inline bool operator==(const Entity &rhs) const;
   inline bool operator!=(const Entity &rhs) const;

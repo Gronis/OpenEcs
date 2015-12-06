@@ -35,6 +35,7 @@
 #include "Id.h"
 #include "Entity.h"
 #include "EntityAlias.h"
+#include "UnallocatedEntity.h"
 #include "Iterator.h"
 #include "View.h"
 #include "EntityManager.h"

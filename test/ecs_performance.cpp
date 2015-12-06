@@ -247,9 +247,30 @@ SCENARIO("TestEntityIterationForContinousMemory") {
     }
     entities.create_with<Clothes>();
   }
+  REQUIRE(entities.with<Clothes>().count() == count / 16);
 
   WHEN("Iterating over entities with doors") {
     std::cout << "Iterating over " << count << " using with Doors continous in memory" << std::endl;
+    {
+      Timer t;
+      entities.with([](Clothes &clothes) { (void) clothes.i; });
+    }
+  }
+}
+
+SCENARIO("TestEntityIterationForContinousMemory Unallocated") {
+  int count = 10000000;
+  EntityManager entities;
+  for (int i = 0; i < count / 16; ++i) {
+    for (int j = 0; j < 15; ++j) {
+      entities.create().add<Wheels>();
+    }
+    entities.create().add<Clothes>();
+  }
+  REQUIRE(entities.with<Clothes>().count() == count / 16);
+
+  WHEN("Iterating over entities with doors") {
+    std::cout << "Iterating over " << count << " using with Doors, continous in memory (unallocated)" << std::endl;
     {
       Timer t;
       entities.with([](Clothes &clothes) { (void) clothes.i; });
@@ -262,16 +283,56 @@ SCENARIO("TestEntityIterationForSplittedMemory") {
   EntityManager entities;
   for (int i = 0; i < count / 16; ++i) {
     for (int j = 0; j < 15; ++j) {
-      entities.create().add<Wheels>();
+      Entity entity = entities.create();
+      entity.add<Wheels>();
     }
-    entities.create().add<Clothes>();
+    Entity entity = entities.create();
+    entity.add<Clothes>();
   }
+  REQUIRE(entities.with<Clothes>().count() == count / 16);
 
   WHEN("Iterating over entities with doors") {
     std::cout << "Iterating over " << count << " using with Doors, split in memory" << std::endl;
     {
       Timer t;
       entities.with([](Clothes &clothes) { (void) clothes.i; });
+    }
+  }
+}
+
+SCENARIO("TestEntityCreationUnallocatedEntity") {
+  int count = 10000000;
+  EntityManager entities;
+  std::cout << "Creating " << count << " with with Doors, Unallocated Entity" << std::endl;
+  {
+    Timer t;
+    for (int i = 0; i < count; ++i) {
+      entities.create().add<Door>();
+    }
+  }
+}
+
+SCENARIO("TestEntityCreationEntity") {
+  int count = 10000000;
+  EntityManager entities;
+  std::cout << "Creating " << count << " with with Doors, Entity" << std::endl;
+  {
+    Timer t;
+    for (int i = 0; i < count; ++i) {
+      Entity e = entities.create();
+      e.add<Door>();
+    }
+  }
+}
+
+SCENARIO("TestEntityCreation_with_Entity") {
+  int count = 10000000;
+  EntityManager entities;
+  std::cout << "Creating " << count << " with with Doors, Entity create_with" << std::endl;
+  {
+    Timer t;
+    for (int i = 0; i < count; ++i) {
+      entities.create_with<Door>();
     }
   }
 }
