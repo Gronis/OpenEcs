@@ -253,7 +253,7 @@ SCENARIO("TestEntityIterationForContinousMemory") {
     std::cout << "Iterating over " << count << " using with Doors continous in memory" << std::endl;
     {
       Timer t;
-      entities.with([](Clothes &clothes) { (void) clothes.i; });
+      entities.with([](Clothes &clothes) {  clothes.i[0] = 0; });
     }
   }
 }
@@ -273,7 +273,7 @@ SCENARIO("TestEntityIterationForContinousMemory Unallocated") {
     std::cout << "Iterating over " << count << " using with Doors, continous in memory (unallocated)" << std::endl;
     {
       Timer t;
-      entities.with([](Clothes &clothes) { (void) clothes.i; });
+      entities.with([](Clothes &clothes) {  clothes.i[0] = 0; });
     }
   }
 }
@@ -295,7 +295,7 @@ SCENARIO("TestEntityIterationForSplittedMemory") {
     std::cout << "Iterating over " << count << " using with Doors, split in memory" << std::endl;
     {
       Timer t;
-      entities.with([](Clothes &clothes) { (void) clothes.i; });
+      entities.with([](Clothes &clothes) { clothes.i[0] = 0; });
     }
   }
 }

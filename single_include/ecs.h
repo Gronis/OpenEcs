@@ -1,6 +1,6 @@
 ///
 /// OpenEcs v0.1.101
-/// Generated: 2015-12-06 20:10:40.698449
+/// Generated: 2016-02-04 13:54:34.305076
 /// ----------------------------------------------------------
 /// This file has been generated from multiple files. Do not modify
 /// ----------------------------------------------------------
@@ -947,6 +947,7 @@ class BaseEntity {
   inline BaseEntity();
   inline BaseEntity(EntityManager* manager);
   inline BaseEntity(const BaseEntity &other);
+  inline BaseEntity& operator=(const BaseEntity& other) { entity_ = other.entity_; return *this; }
 
   inline EntityManager &entities() { return *manager_; }
   inline Entity &entity() { return entity_; }
