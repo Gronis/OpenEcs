@@ -3,13 +3,16 @@
 
 # IDE files
 .idea/*
+.ycm_extra_conf.py
+.ycm_extra_conf.pyc
+
 
 # Compiled Object files
 *.slo
 *.lo
 *.o
 *.obj
-build/*
+build*/
 
 # Precompiled Headers
 *.gch
