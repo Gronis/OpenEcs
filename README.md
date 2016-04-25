@@ -1,6 +1,6 @@
 #OpenEcs - A fast, clean, typesafe, C++11, header only, Entity Component System
 
-[![Build Status](https://travis-ci.org/Gronis/OpenEcs.svg?branch=master)](https://travis-ci.org/Gronis/OpenEcs) [![Build status](https://ci.appveyor.com/api/projects/status/1boh2lr4gn03m939?svg=true)](https://ci.appveyor.com/project/Gronis/openecs)
+[![Build Status](https://travis-ci.org/Gronis/OpenEcs.svg?branch=master)](https://travis-ci.org/Gronis/OpenEcs) [![Build status](https://ci.appveyor.com/api/projects/status/1boh2lr4gn03m939?svg=true)](https://ci.appveyor.com/project/Gronis/openecs) [![Join the chat at https://gitter.im/Gronis/OpenEcs](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/Gronis/OpenEcs)
 
 ##What is OpenEcs?
 Open Ecs is an Entity Component System that uses metaprogramming, cache coherency, and other useful tricks to maximize 

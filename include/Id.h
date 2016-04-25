@@ -1,6 +1,8 @@
 #ifndef ECS_ID_H
 #define ECS_ID_H
 
+#include "Defines.h"
+
 namespace ecs{
 
 ///---------------------------------------------------------------------

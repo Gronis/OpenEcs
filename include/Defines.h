@@ -1,6 +1,8 @@
 #ifndef ECS_DEFINES_H
 #define ECS_DEFINES_H
 
+#include <bitset>
+
 /// The cache line size for the processor. Usually 64 bytes
 #ifndef ECS_CACHE_LINE_SIZE
 #define ECS_CACHE_LINE_SIZE 64
