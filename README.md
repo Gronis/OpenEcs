@@ -28,7 +28,7 @@ OpenEcs support all mainstream compilers:
 * clang
 * MSVC (Visual Studio 2015)
 
-##Standard Feature's:
+##Standard Features:
 The first thing you need is somewhere to store the entities. This is called the EntityManager and is created like this:
 ```cpp
 using namespace ecs;
@@ -272,7 +272,7 @@ The systems are updated in the same order as they are added.
 ###Error handling
 Any runtime or compile-time error should be handled by static or runtime assertions.
 
-##Extra feature's
+##Extra features
 Aside from the normal usage of bitmasks for Component recognition and storing components in a vector for cache 
 coherency, OpenEcs has some extra features.
 
