@@ -1,8 +1,8 @@
-#OpenEcs - A fast, clean, typesafe, C++11, header only, Entity Component System
+# OpenEcs - A fast, clean, typesafe, C++11, header only, Entity Component System
 
 [![Build Status](https://travis-ci.org/Gronis/OpenEcs.svg?branch=master)](https://travis-ci.org/Gronis/OpenEcs) [![Build status](https://ci.appveyor.com/api/projects/status/1boh2lr4gn03m939?svg=true)](https://ci.appveyor.com/project/Gronis/openecs) [![Join the chat at https://gitter.im/Gronis/OpenEcs](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/Gronis/OpenEcs)
 
-##What is OpenEcs?
+## What is OpenEcs?
 Open Ecs is an Entity Component System that uses metaprogramming, cache coherency, and other useful tricks to maximize 
 performance and configurability. It is written in c++11 without further dependencies.
 
@@ -11,24 +11,24 @@ project, I suggest looking further. I want more stuff like custom component allo
 configurable EntityManager and SystemManager. Some way to handle events might be useful to include.
 Though, I don't want to bloat the lib with too much features. Let me know what you think and what is missing, I hope you enjoy using OpenEcs.
 
-##Why OpenEcs?
+## Why OpenEcs?
 I authored OpenEcs after using other ECS libraries. The main reason for this was that I wanted to write my own, and it 
 wasn't supposed to become its own library. As I progressed, I thought it might be worth releasing it to the public as it 
 slightly became a library with a different approach than the others.
 
 OpenECS focuses on clean and understandable code that compiles to something with good performance, with good defaults, but still providing the ability to configure alternative behaviours when necessary.
 
-##Installation
+## Installation
 Just [Download](https://github.com/Gronis/OpenEcs/raw/master/single_include/ecs.h) the header and include it into your project.
 Make sure to enable c++11 when compiling. (-std=c++11 or -std=c++0x)
 
-##Support
+## Support
 OpenEcs support all mainstream compilers:
 * gcc (tested with v4.8)
 * clang
 * MSVC (Visual Studio 2015)
 
-##Standard Features:
+## Standard Features:
 The first thing you need is somewhere to store the entities. This is called the EntityManager and is created like this:
 ```cpp
 using namespace ecs;
@@ -52,7 +52,7 @@ entities.create(100, [] (Entity entity){
 });
 ```
 
-###Adding Components to entities
+### Adding Components to entities
 Adding components to entities is easy. But first we must define a Component. A Component can be any class or struct.
 
 ```cpp
@@ -224,7 +224,7 @@ entities.with([](Health & health, Mana & mana){ });
 
 ```
 
-###Systems
+### Systems
 Systems define our behavior. The SystemManager provided by OpenEcs is very simple and is just a wrapper around an interface with an update function, together with the entities.
 
 First we define our SystemManager
@@ -269,14 +269,14 @@ systems.update(deltaTime);  //Does not updates any system
 
 The systems are updated in the same order as they are added.
 
-###Error handling
+### Error handling
 Any runtime or compile-time error should be handled by static or runtime assertions.
 
-##Extra features
+## Extra features
 Aside from the normal usage of bitmasks for Component recognition and storing components in a vector for cache 
 coherency, OpenEcs has some extra features.
 
-###EntityAlias that enables object oriented interaction.
+### EntityAlias that enables object oriented interaction.
 
 As an object oriented programmer, the ability to encapsulate the implementation as much as possible is desired. By using 
 EntityAlias, an Entity can be wrapped inside these, witch then define all functions needed. then, the systems can 
@@ -357,7 +357,7 @@ if(entity.is<Actor>()){ // <- same as entity.has<Health, Name>()
 ```
 
 
-###Creating entities by using EntityAlias
+### Creating entities by using EntityAlias
 By defining a constructor for the EntityAlias. We can use the create function from the EntityManager
 like this:
 
@@ -395,7 +395,7 @@ This results in a useful factory method for any EntityAlias. Another good thing 
 its components, and enables entities to be several things at the same time, without using hierarchy (Which is the idea 
 behind Entity Component Systems).
 
-###Wait a bit...
+### Wait a bit...
 
 You might start thinking "If all components should be added anyway. Why is the constructor needed?" I started thinking that too, and added a standard behavior. 
 
@@ -480,7 +480,7 @@ struct Movable : EntityAlias<Position, Velocity>{
 Hopefully, this should help with quick creation of components and EntityAliases without typing "boilerplate code" for the lazy people (like me), while still allowing the flexibility of defining your own constructors when necessary.
 
 
-###Override operators
+### Override operators
 It would be useful if the components override some basic operators for cleaner code.
 ```cpp
 //Using == operator of component class
@@ -527,7 +527,7 @@ if(entity.get<Health>().value > 10){
 ```
 NOTE: Remember that any class can be a component, and that it is optional to use Property\<T\>, as overriding operators is not always desired. For those who does not what to use overridden operators, leave out the Property\<T\> class.
 
-###Memory
+### Memory
 
 The memory for components and entities are handled manually by OpenEcs. Entities are nothing more than a placeholder with its ID, and a pointer to its EntityManager. Entities are not stored, but created when returned from the API.
 
@@ -550,7 +550,7 @@ The EntityManager allocates memory for each entity to have every component. This
 
 
 
-###Performance
+### Performance
 
 On my Apple MBP Retina 13" 2014 computer, this is some performance tests using 10 000 000 entities with some components 
 attached:
@@ -627,7 +627,7 @@ entities.fetch_every([](Actor actor){ });
 
 ```
 
-##A complete example
+## A complete example
 This examples illustrates two spellcasters: Alice and Bob, and their fight to the death. Prints the winner and remaining
 health and mana.
 
@@ -738,7 +738,7 @@ Health: 4
 Mana:   1337
 ```
 
-##License
+## License
 Copyright (C) 2015  Robin Grönberg
 
 This program is free software: you can redistribute it and/or modify
